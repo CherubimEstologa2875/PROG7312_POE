@@ -1,0 +1,821 @@
+<UserControl x:Class="ST10443277_PROG7312.TelemetryDashboard"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:local="clr-namespace:ST10443277_PROG7312"
+ Background="#F4F7FA"
+ Foreground="#1E2A36"
+ FontFamily="Segoe UI"
+ FontSize="13">
+
+    <UserControl.Resources>
+        <Style x:Key="Action" TargetType="Button">
+            <Setter Property="Background" Value="#126B60"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="16,9"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="9,7"/>
+            <Setter Property="Margin" Value="0,5,12,0"/>
+        </Style>
+
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="#1E2A36"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Padding" Value="12,9"/>
+
+            <!--A custom ControlTemplate is used to control how each ComboBoxItem is rendered. See WPF UI DESIGN - C# Design Pro, 2022.-->
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+
+                        <Border x:Name="ItemBorder"
+                            Background="{TemplateBinding Background}"
+                            Padding="{TemplateBinding Padding}">
+
+                            <ContentPresenter/>
+
+                        </Border>
+
+                        <!--Triggers provide visual feedback when an item is highlighted or selected. See WPF XAML (Material Design UI) - C# Code Academy, 2021.-->
+                        <ControlTemplate.Triggers>
+
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="ItemBorder"
+                                    Property="Background"
+                                    Value="#EAF5F2"/>
+                            </Trigger>
+
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemBorder"
+                                    Property="Background"
+                                    Value="#C8E5DE"/>
+                            </Trigger>
+
+                        </ControlTemplate.Triggers>
+
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+
+        <!-- Provides consistent styling for ComboBox controls used as dashboard filters. See WPF UI DESIGN - C# Design Pro, 2022.-->
+        <Style TargetType="ComboBox">
+            <Setter Property="Foreground" Value="#1E2A36"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#DCE3EB"/>
+            <Setter Property="MinWidth" Value="148"/>
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="Margin" Value="0,4,18,4"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility"
+                Value="Auto"/>
+
+            <!-- Custom ComboBox template provides control over the dropdown button, selected value display and popup.See WPF XAML (Material Design UI) - C# Code Academy, 2021.-->
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+
+                        <Grid>
+
+                            <!--ToggleButton opens and closes the ComboBox dropdown menu.-->
+                            <ToggleButton x:Name="FilterToggle"
+                                      Focusable="False"
+                                      IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+
+                                <ToggleButton.Template>
+
+                                    <!--Custom ToggleButton template creates the filter border and dropdown arrow.See WPF UI DESIGN - C# Design Pro, 2022.-->
+                                    <ControlTemplate TargetType="ToggleButton">
+
+                                        <Border x:Name="FilterBorder"
+                                            Background="#FFFFFF"
+                                            BorderBrush="#DCE3EB"
+                                            BorderThickness="1"
+                                            CornerRadius="6">
+
+                                            <!-- Draws the dropdown arrow. -->
+                                            <Path Data="M 0 0 L 6 6 L 12 0"
+                                              Stroke="White"
+                                              StrokeThickness="2"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center"
+                                              Margin="0,0,16,0"/>
+
+                                        </Border>
+
+                                        <!--Mouse and checked-state triggers provide interactive visual feedback.See WPF XAML (Material Design UI) - C# Code Academy, 2021.-->
+                                        <ControlTemplate.Triggers>
+
+                                            <Trigger Property="IsMouseOver"
+                                                 Value="True">
+
+                                                <Setter TargetName="FilterBorder"
+                                                    Property="Background"
+                                                    Value="#263039"/>
+
+                                            </Trigger>
+
+                                            <Trigger Property="IsChecked"
+                                                 Value="True">
+
+                                                <Setter TargetName="FilterBorder"
+                                                    Property="BorderBrush"
+                                                    Value="#126B60"/>
+
+                                            </Trigger>
+
+                                        </ControlTemplate.Triggers>
+
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+
+
+                            <!--Displays the currently selected item in the ComboBox. -->
+                            <ContentPresenter
+                            Content="{TemplateBinding SelectionBoxItem}"
+                            IsHitTestVisible="False"
+                            VerticalAlignment="Center"
+                            Margin="16,0,42,0"/>
+
+
+                            <!-- Popup contains the selectable items shown when the ComboBox is opened.See WPF XAML (Material Design UI) - C# Code Academy, 2021.-->
+                            <Popup x:Name="PART_Popup"
+                               IsOpen="{TemplateBinding IsDropDownOpen}"
+                               Placement="Bottom"
+                               AllowsTransparency="True"
+                               Focusable="False">
+
+                                    <Border Background="#FFFFFF"
+                                    BorderBrush="#DCE3EB"
+                                    BorderThickness="1"
+                                    MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                                    MaxHeight="300">
+
+                                    <ScrollViewer CanContentScroll="True">
+
+                                        <ItemsPresenter
+                                        KeyboardNavigation.DirectionalNavigation="Contained"/>
+
+                                    </ScrollViewer>
+
+                                </Border>
+                            </Popup>
+
+                        </Grid>
+
+
+                        <!-- Keyboard focus receives a visual glow to improve visibility when navigating with the keyboard.See WPF UI DESIGN - C# Design Pro, 2022. -->
+                        <ControlTemplate.Triggers>
+
+                            <Trigger Property="IsKeyboardFocusWithin"
+                                 Value="True">
+
+                                <Setter TargetName="FilterToggle"
+                                    Property="Effect">
+
+                                    <Setter.Value>
+                                        <DropShadowEffect
+                                        Color="#126B60"
+                                        BlurRadius="8"
+                                        ShadowDepth="0"
+                                        Opacity="0.8"/>
+                                    </Setter.Value>
+
+                                </Setter>
+
+                            </Trigger>
+
+                        </ControlTemplate.Triggers>
+
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+
+        </Style>
+
+    </UserControl.Resources>
+
+    <StackPanel>
+
+
+        <!--TELEMETRY HEADER-->
+
+        <!--Border creates the dashboard header container.See WPF XAML (Material Design UI) - C# Code Academy, 2021.-->
+        <DockPanel Margin="32,0,32,22">
+
+            <!-- Navigation button returns the user to the gateway page. -->
+            <Button x:Name="BackButton"
+                DockPanel.Dock="Left"
+                Content="←  Gateway"
+                Style="{StaticResource Action}"
+                Click="Back_Click"
+                AutomationProperties.Name="Back to gateway"/>
+
+            <StackPanel>
+                <TextBlock Text="TELEMETRY DASHBOARD"
+                       Foreground="#126B60"
+                       FontWeight="Bold"
+                       FontSize="11"/>
+                <TextBlock Text="Sensor readings and health"
+                       FontSize="30"
+                       FontWeight="SemiBold"/>
+                <TextBlock Text="Explore telemetry, alerts and connected device status."
+                       Foreground="#576579"
+                       Margin="0,5,0,0"/>
+            </StackPanel>
+
+            <!-- Displays whether the telemetry API is currently online. -->
+            <TextBlock x:Name="DataMode"
+                   Text="API OFFLINE"
+                   Foreground="#576579"
+                   HorizontalAlignment="Right"
+                   VerticalAlignment="Center"/>
+        </DockPanel>
+
+
+        <!--API status area with refresh control.See WPF UI DESIGN - C# Design Pro, 2022.-->
+        <Border BorderBrush="#DCE3EB"
+            BorderThickness="0,0,0,1"
+            Padding="24,10">
+
+            <DockPanel>
+
+                <!--Refresh button is docked to the right while the API status fills the remaining space.-->
+                <Button x:Name="RefreshButton"
+                    DockPanel.Dock="Right"
+                    Content="Refresh"
+                    Click="Refresh_Click"
+                    Padding="12,6"
+                    Background="#126B60"
+                    Foreground="White"
+                    BorderBrush="#126B60"
+                    Cursor="Hand"
+                    Margin="16,0,0,0"/>
+
+                <TextBlock x:Name="ApiStatus"
+                       Text="Open telemetry to connect to the API."
+                       TextWrapping="Wrap"
+                       VerticalAlignment="Center"
+                       Foreground="#576579"/>
+
+            </DockPanel>
+        </Border>
+
+
+        <!--Loads the custom sensor registration UserControl.-->
+        <local:SensorRegistrationPanel
+        x:Name="RegistrationPanel"
+        Margin="24,14"/>
+
+        <!--Expander allows the sensor-reading form to be collapsedor expanded.See WPF UI DESIGN - C# Design Pro, 2022.-->
+        <Expander Header="Send a sensor reading"
+              Foreground="#1E2A36"
+              Margin="24,10"
+              IsExpanded="True">
+
+            <StackPanel Margin="0,10,0,0">
+
+                <!--WrapPanel places sensor reading controls horizontally and allows them to wrap when space is limited.See WPF UI DESIGN - C# Design Pro, 2022.-->
+                <WrapPanel>
+
+                    <!-- Sensor ID input. -->
+                    <StackPanel Margin="0,0,14,0">
+
+                        <TextBlock Text="Sensor ID"
+                               Margin="0,0,0,4"/>
+
+                        <TextBox x:Name="InputSensor"
+                             Text="S-102"
+                             Width="130"
+                             Padding="8"
+                             MaxLength="40"
+                             AutomationProperties.Name="Reading sensor ID"/>
+
+                    </StackPanel>
+
+
+                    <!-- Sensor location input. -->
+                    <StackPanel Margin="0,0,14,0">
+
+                        <TextBlock Text="Location"
+                               Margin="0,0,0,4"/>
+
+                        <TextBox x:Name="InputLocation"
+                             Text="Zone A"
+                             Width="140"
+                             Padding="8"
+                             MaxLength="80"
+                             AutomationProperties.Name="Reading location"/>
+
+                    </StackPanel>
+
+
+                    <!-- Sensor category selector. -->
+                    <StackPanel>
+
+                        <TextBlock Text="Category"
+                               Margin="0,0,0,4"/>
+
+                        <ComboBox x:Name="InputCategory"
+                              SelectedIndex="0"
+                              Height="34"
+                              Margin="0,0,14,0"
+                              AutomationProperties.Name="Reading category">
+
+                            <ComboBoxItem Content="Temperature"/>
+                            <ComboBoxItem Content="Humidity"/>
+
+                        </ComboBox>
+
+                    </StackPanel>
+
+
+                    <!-- Sensor measurement value. -->
+                    <StackPanel Margin="0,0,14,0">
+
+                        <TextBlock Text="Value (°C / %)"
+                               Margin="0,0,0,4"/>
+
+                        <TextBox x:Name="InputValue"
+                             Text="42"
+                             Width="105"
+                             Padding="8"
+                             MaxLength="30"
+                             AutomationProperties.Name="Reading value"/>
+
+                    </StackPanel>
+
+
+                    <!--Sends the current sensor reading.Button colours distinguish it as a primary action.See WPF XAML (Material Design UI) - C# Code Academy, 2021.-->
+                    <Button x:Name="SendReadingButton"
+                        Content="Send reading"
+                        Click="SendReading_Click"
+                        Padding="16,8"
+                        VerticalAlignment="Bottom"
+                        Background="#126B60"
+                        Foreground="White"
+                        BorderBrush="#126B60"
+                        Cursor="Hand"/>
+
+                </WrapPanel>
+
+
+                <!-- Sensor reading submission feedback. -->
+                <TextBlock x:Name="SubmitStatus"
+                       Text="Readings are timestamped when sent. Temperature uses °C; humidity uses %."
+                       Foreground="#576579"
+                       TextWrapping="Wrap"
+                       Margin="0,8,0,0"/>
+
+            </StackPanel>
+
+        </Expander>
+
+        <!-- Three-column Grid presents online sensors, alerts and disconnected device counts.See WPF UI DESIGN - C# Design Pro, 2022.-->
+        <Grid Margin="44,20,44,22">
+
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition/>
+                <ColumnDefinition/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+
+
+            <!-- Online sensor indicator. -->
+            <StackPanel Orientation="Horizontal"
+                    VerticalAlignment="Center">
+
+                <!--Viewbox and Canvas are used to draw a scalable connectivity icon.-->
+                <Viewbox Width="38"
+                     Height="36"
+                     Margin="0,0,24,0">
+
+                    <Canvas Width="40"
+                        Height="36">
+
+                        <Path
+                        Data="M 2 11 Q 20 -4 38 11 M 6 16 Q 20 4 34 16 M 10 21 Q 20 12 30 21 M 14 26 Q 20 20 26 26"
+                        Stroke="#126B60"
+                        StrokeThickness="2.2"
+                        StrokeStartLineCap="Round"
+                        StrokeEndLineCap="Round"/>
+
+                        <Ellipse Width="5"
+                             Height="5"
+                             Fill="#126B60"
+                             Canvas.Left="17.5"
+                             Canvas.Top="28"/>
+
+                    </Canvas>
+
+                </Viewbox>
+
+                <TextBlock VerticalAlignment="Center">
+                <Run Text="Online Sensors: "/>
+                <Run x:Name="OnlineCount"
+                     Text="0"
+                     Foreground="#126B60"
+                     FontSize="17"/>
+                </TextBlock>
+
+            </StackPanel>
+
+
+            <!-- Alert summary indicator. -->
+            <StackPanel Grid.Column="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Center">
+
+                <!--Grid combines a Path and TextBlock to create the warning symbol.-->
+                <Grid Width="44"
+                  Height="36"
+                  Margin="0,0,28,0">
+
+                    <Path Data="M 22 1 L 43 34 L 1 34 Z"
+                      Fill="#FFD044"
+                      StrokeLineJoin="Round"/>
+
+                    <TextBlock Text="!"
+                           Foreground="#1E2A36"
+                           FontSize="25"
+                           FontWeight="Bold"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Margin="0,3,0,0"/>
+
+                </Grid>
+
+                <TextBlock VerticalAlignment="Center">
+                <Run Text="Alerts: "/>
+                <Run x:Name="AlertCount"
+                     Text="0"
+                     Foreground="#FFD044"
+                     FontSize="17"/>
+                </TextBlock>
+
+            </StackPanel>
+
+
+            <!-- Disconnected sensor indicator. -->
+            <StackPanel Grid.Column="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+
+                <Path
+                Data="M 4 30 C -2 30 0 12 6 13 C 4 1 14 1 16 11 C 21 -7 31 1 30 15 C 39 14 39 31 33 31 Z"
+                Stroke="#FF3038"
+                StrokeThickness="2"
+                Width="38"
+                Height="36"
+                Margin="0,0,26,0"/>
+
+                <TextBlock VerticalAlignment="Center">
+                <Run Text="Disconnected: "/>
+                <Run x:Name="DisconnectedCount"
+                     Text="0"
+                     Foreground="#FF3038"
+                     FontSize="17"/>
+                </TextBlock>
+
+            </StackPanel>
+
+        </Grid>
+
+
+        <!--Summary information generated from telemetry and investigation results.-->
+        <StackPanel Margin="30,0,30,16">
+
+            <TextBlock x:Name="PowerSummary"
+                   Foreground="#126B60"
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,8"/>
+
+            <TextBlock x:Name="InvestigationSummary"
+                   Foreground="#576579"
+                   TextWrapping="Wrap"
+                   AutomationProperties.LiveSetting="Polite"/>
+
+        </StackPanel>
+
+        <!--Border creates a card-style visual container around the chart.See WPF XAML (Material Design UI) - C# Code Academy, 2021.-->
+        <Border x:Name="ChartSection"
+            BorderBrush="#DCE3EB"
+            BorderThickness="1"
+            Margin="30,0,30,30"
+            Padding="22,18,22,12">
+
+            <Grid>
+
+                <!--Rows separate chart headings, the plotting region andthe bottom time/readout area.-->
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="380"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+
+                <!-- Chart descriptive information. -->
+                <StackPanel>
+
+                    <TextBlock x:Name="ChartCaption"
+                           Foreground="#576579"
+                           FontSize="12"
+                           TextWrapping="Wrap"/>
+
+                    <TextBlock x:Name="ThresholdCaption"
+                           Foreground="#FFD044"
+                           FontSize="11"
+                           Margin="0,4,0,0"/>
+
+                </StackPanel>
+
+
+                <!--Main chart area.Canvas provides absolute positioning suitable for dynamically drawn chart elements.-->
+                <Grid Grid.Row="1"
+                  Margin="10,18,10,0">
+
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="58"/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Y-axis labels are drawn here dynamically. -->
+                    <Canvas x:Name="AxisLabels"
+                        Margin="0,0,0,30"
+                        SizeChanged="Chart_SizeChanged"/>
+
+
+                    <Grid Grid.Column="1">
+
+                        <Grid.RowDefinitions>
+                            <RowDefinition/>
+                            <RowDefinition Height="30"/>
+                        </Grid.RowDefinitions>
+
+
+                        <!--Chart Canvas contains axes, threshold guide,reading line and anomaly indicators. See WPF UI DESIGN - C# Design Pro, 2022.-->
+                        <Canvas x:Name="Plot"
+                            ClipToBounds="True"
+                            SizeChanged="Chart_SizeChanged"
+                            MouseMove="Chart_MouseMove"
+                            Background="Transparent"
+                            AutomationProperties.Name="Sensor readings over time">
+
+                            <!-- Chart axes. -->
+                            <Path x:Name="ChartAxes"
+                              Stroke="#B6C1CC"
+                              StrokeThickness="1"/>
+
+                            <!-- Threshold guide line. -->
+                            <Path x:Name="ThresholdGuide"
+                              Stroke="#FFD044"
+                              StrokeThickness="1"
+                              StrokeDashArray="5,4"/>
+
+                            <!-- Main sensor reading line. -->
+                            <Polyline x:Name="ReadingLine"
+                                  Stroke="#126B60"
+                                  StrokeThickness="2.5"
+                                  StrokeLineJoin="Round"/>
+
+                            <!-- Highlights the newest reading. -->
+                            <Ellipse x:Name="LatestPoint"
+                                 Width="7"
+                                 Height="7"
+                                 Fill="#126B60"
+                                 Visibility="Collapsed"/>
+
+                            <!-- Marks detected anomalous readings. -->
+                            <Path x:Name="AnomalyMarker"
+                              Stroke="#FF3038"
+                              StrokeThickness="3"/>
+
+                            <TextBlock x:Name="AnomalyLabel"
+                                   Text="←  Anomaly"
+                                   Foreground="#FF3038"
+                                   FontSize="12"/>
+
+                            <!-- Shown when filtering returns no chart data. -->
+                            <TextBlock x:Name="EmptyChart"
+                                   Text="No readings match these filters."
+                                   Foreground="#576579"
+                                   Visibility="Collapsed"/>
+
+                        </Canvas>
+
+
+                        <!-- Start and end time labels for the graph. -->
+                        <Grid Grid.Row="1"
+                          Margin="0,8,0,0">
+
+                            <TextBlock x:Name="StartTime"
+                                    Foreground="#576579"
+                                   FontSize="11"/>
+
+                            <TextBlock x:Name="EndTime"
+                            Foreground="#576579"
+                                   FontSize="11"
+                                   HorizontalAlignment="Right"
+                                   Margin="0,0,104,0"/>
+
+                        </Grid>
+
+                    </Grid>
+
+                </Grid>
+
+
+                <!--Chart axis title and cursor information.-->
+                <StackPanel Grid.Row="2"
+                        Margin="0,8,0,0">
+
+                    <TextBlock Text="Time"
+                           FontSize="17"
+                           FontWeight="SemiBold"
+                           HorizontalAlignment="Center"/>
+
+                    <TextBlock x:Name="CursorReadout"
+                           Text="Hover over the chart to inspect the nearest reading."
+                           Foreground="#576579"
+                           TextWrapping="Wrap"
+                           Margin="0,6,0,0"/>
+
+                </StackPanel>
+
+            </Grid>
+
+        </Border>
+        <Border BorderBrush="#DCE3EB"
+            BorderThickness="0,1,0,0"
+            Padding="20,20,20,0">
+
+            <StackPanel>
+
+
+                <!--Rounded filter container visually groups all dashboard filtering controls.See WPF XAML (Material Design UI) - C# Code Academy, 2021. -->
+                 <Border BorderBrush="#DCE3EB"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="20,6">
+
+                    <WrapPanel VerticalAlignment="Center">
+
+                        <TextBlock Text="Filters:"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               Margin="0,0,30,0"/>
+
+                        <!--ComboBox controls filter the displayed telemetry data by sensor, location, category and time.-->
+                        <ComboBox x:Name="SensorFilter"
+                              AutomationProperties.Name="Sensor filter"
+                              ToolTip="Filter by sensor"
+                              SelectionChanged="Filter_Changed"/>
+
+                        <ComboBox x:Name="LocationFilter"
+                              AutomationProperties.Name="Location filter"
+                              ToolTip="Filter by location"
+                              SelectionChanged="Filter_Changed"/>
+
+                        <ComboBox x:Name="CategoryFilter"
+                              AutomationProperties.Name="Category filter"
+                              ToolTip="Filter by category"
+                              SelectionChanged="Filter_Changed"/>
+
+                        <ComboBox x:Name="TimeFilter"
+                              AutomationProperties.Name="Time filter"
+                              ToolTip="Reading and alert time range"
+                              SelectionChanged="Filter_Changed"/>
+
+
+                        <!--Reset button clears currently selected filters.-->
+                        <Button x:Name="ResetFiltersButton"
+                            Content="_Reset"
+                            Click="Reset_Click"
+                            Padding="12,6"
+                            Margin="0,4"
+                            VerticalAlignment="Center"
+                             Background="#126B60"
+                            Foreground="White"
+                             BorderBrush="#126B60"
+                            Cursor="Hand"/>
+
+                    </WrapPanel>
+
+                </Border>
+
+
+                <!--ItemsControl displays alert records using a reusable DataTemplate.See WPF XAML (Material Design UI) - C# Code Academy, 2021.-->
+                <ItemsControl x:Name="AlertList"
+                          Margin="0,6,0,0">
+
+                    <ItemsControl.ItemTemplate>
+
+                        <DataTemplate>
+
+                            <!--Alert card border colour is data-bound so different alerts can display distinct accents.-->
+                            <Border BorderBrush="{Binding Accent}"
+                                BorderThickness="1"
+                                CornerRadius="10"
+                                Padding="18,8"
+                                Margin="0,0,0,8">
+
+                                <Grid>
+
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="48"/>
+                                        <ColumnDefinition/>
+                                    </Grid.ColumnDefinitions>
+
+
+                                    <!-- Dynamic alert icon. -->
+                                    <TextBlock Text="{Binding Icon}"
+                                           Foreground="{Binding Accent}"
+                                           FontSize="32"
+                                           FontWeight="Bold"
+                                           VerticalAlignment="Center"/>
+
+
+                                    <StackPanel Grid.Column="1">
+
+                                        <!-- Dynamic alert heading. -->
+                                        <TextBlock Text="{Binding Heading}"
+                                               Foreground="{Binding Accent}"
+                                               FontSize="17"
+                                               FontWeight="SemiBold"/>
+
+                                        <!-- Dynamic alert details. -->
+                                        <TextBlock Text="{Binding Detail}"
+                                               Margin="0,5,0,0"
+                                               TextWrapping="Wrap"/>
+
+
+                                        <!--Opens investigation functionality for the selected alert.-->
+                                        <Button Content="Investigate sensor →"
+                                            Click="Investigate_Click"
+                                            HorizontalAlignment="Left"
+                                            Padding="10,6"
+                                            Margin="0,8,0,0"
+                                            Background="#EAF5F2"
+                                            Foreground="#126B60"/>
+
+                                    </StackPanel>
+
+                                </Grid>
+
+                            </Border>
+
+                        </DataTemplate>
+
+                    </ItemsControl.ItemTemplate>
+
+                </ItemsControl>
+
+
+                <!--Message displayed when no alerts match the active filters.-->
+                <TextBlock x:Name="EmptyAlerts"
+                       Text="No alerts in the selected range."
+                       Foreground="#576579"
+                       Margin="16,12"
+                       Visibility="Collapsed"/>
+
+
+                <!--Describes the demonstration timing and threshold rules.These values are application-specific and therefore arenot attributed to the UI design references.-->
+                <TextBlock
+                Text="Refreshes every 15 seconds. Disconnected after 5 minutes. Thresholds: above 75 °C, 75% or 2000 W. Sudden changes: over 20 °C / percentage points or 500 W between readings. These are demo rules."
+                TextWrapping="Wrap"
+                 Foreground="#576579"
+                FontSize="11"
+                Margin="4,4,0,18"/>
+
+            </StackPanel>
+
+        </Border>
+
+    </StackPanel>
+
+</UserControl>
+
+<!--
+    REFERENCE LIST
+-->
+
+<!--
+WPF UI DESIGN – C# Design Pro. 2022. YouTube video, added by C# Design Pro.
+[Online].
+Available at:
+https://youtube.com/playlist?list=PLvA3V2O0S6Rhyt6KY1pZOl1mS0bdE3sFI&si=PxbgyECXq3fp0uLA
+[Accessed 10 September 2026].
+-->
+
+<!--
+WPF XAML (Material Design UI) | C# - C# Code Academy. 2021.
+YouTube video, added by C# Code Academy.
+[Online].
+Available at:
+https://youtube.com/playlist?list=PLBRjmHe78giWTi7oJpjXtk0Oz1j-ETzVJ&si=MkN__TlC6rAJra-R
+[Accessed 10 September 2026].
+-->

@@ -1,0 +1,201 @@
+<UserControl x:Class="ST10443277_PROG7312.SensorProfilePanel" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Foreground="White" FontSize="13">
+
+    <UserControl.Resources>
+
+<!-- Reusable button styling provides consistent padding, spacing and colour across profile actions. See WPF UI DESIGN - C# Design Pro, 2022.-->
+        <Style x:Key="ProfileButton" TargetType="Button">
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Margin" Value="0,6,10,6"/>
+            <Setter Property="Background" Value="#2F6B5D"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+    </UserControl.Resources>
+<!-- Border creates a card-style container around the selected sensor profile interface.See WPF XAML (Material Design UI) - C# Code Academy, 2021.-->
+    <Border Background="#214F46"
+        BorderBrush="#5C927B"
+        BorderThickness="1"
+        CornerRadius="6"
+        Padding="16"
+        Margin="0,14,0,0">
+
+        <StackPanel>
+
+            <!-- Profile section heading. -->
+            <TextBlock Text="Selected sensor profile"
+                   FontSize="17"
+                   FontWeight="SemiBold"/>
+
+            <!-- Provides instructions until a registered sensor has been selected by the user.-->
+            <TextBlock x:Name="ProfileHeading"
+                   Text="Select a registered sensor above to manage its files and readings."
+                   TextWrapping="Wrap"
+                   Margin="0,6,0,12"
+                   Foreground="#C8DED5"/>
+
+            <!--Profile actions remain hidden and disabled until a sensor profile is selected. -->
+            <StackPanel x:Name="ProfileActions"
+                    IsEnabled="False"
+                    Visibility="Collapsed">
+
+                <TextBlock Text="Device files"
+                       FontWeight="SemiBold"/>
+
+                <!-- WrapPanel allows file-related controls to flow horizontally and wrap if available space becomes limited. See WPF UI DESIGN - C# Design Pro, 2022. -->
+                <WrapPanel>
+
+                    <!-- Allows the user to specify the type of file being attached to the selected sensor.-->
+                    <ComboBox x:Name="AttachmentKind"
+                          Width="190"
+                          Height="36"
+                          Margin="0,6,10,6"
+                          SelectedIndex="0"
+                          AutomationProperties.Name="Attachment type">
+
+                        <ComboBoxItem Content="Configuration"/>
+                        <ComboBoxItem Content="Photo"/>
+                        <ComboBoxItem Content="Log"/>
+                        <ComboBoxItem Content="Deployment"/>
+
+                    </ComboBox>
+
+                    <!-- Action buttons use a shared reusable style.See WPF UI DESIGN - C# Design Pro, 2022. -->
+                    <Button x:Name="UploadButton"
+                        Content="Attach file…"
+                        Style="{StaticResource ProfileButton}"
+                        Click="Upload_Click"/>
+
+                    <Button x:Name="ReloadFilesButton"
+                        Content="Refresh files"
+                        Style="{StaticResource ProfileButton}"
+                        Click="RefreshFiles_Click"/>
+
+                    <Button x:Name="DownloadButton"
+                        Content="Save selected file…"
+                        Style="{StaticResource ProfileButton}"
+                        Click="Download_Click"/>
+
+                </WrapPanel>
+
+                <!-- Provides users with file upload limits and deployment validation requirements.-->
+                <TextBlock Text="Up to 10 MB per file. Deployment JSON (64 KB) is recursively validated against registered locations before attachment."
+                       TextWrapping="Wrap"
+                       Foreground="#C8DED5"
+                       FontSize="11"
+                       Margin="0,0,0,8"/>
+
+                <!--Displays all files associated with the selected sensor. The DataTemplate controls how each file record appears. See WPF XAML (Material Design UI) - C# Code Academy, 2021. -->
+                <ListBox x:Name="AttachmentList"
+                     Height="115"
+                     Background="#173F37"
+                     Foreground="White"
+                     BorderBrush="#5C927B"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     HorizontalContentAlignment="Stretch"
+                     AutomationProperties.Name="Files attached to selected sensor">
+
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+
+                            <StackPanel Margin="4">
+
+                                <TextBlock Text="{Binding FileName}"
+                                       TextWrapping="Wrap"
+                                       FontWeight="SemiBold"/>
+
+                                <!-- Displays file metadata using individual Run elements bound to the file record. -->
+                                <TextBlock TextWrapping="Wrap"
+                                       FontSize="11">
+
+                                <Run Text="{Binding Kind}"/>
+                                <Run Text=" • "/>
+                                <Run Text="{Binding Size}"/>
+                                <Run Text=" bytes • "/>
+                                <Run Text="{Binding UploadedAt}"/>
+
+                                </TextBlock>
+
+                            </StackPanel>
+
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+
+                </ListBox>
+
+                <!-- LiveSetting allows assistive technology to announce changes to file operation status. -->
+                <TextBlock x:Name="FileStatus"
+                       Foreground="#C8DED5"
+                       TextWrapping="Wrap"
+                       Margin="0,8"
+                       AutomationProperties.LiveSetting="Polite"/>
+
+                <TextBlock Text="Send a reading for this profile"
+                       FontWeight="SemiBold"
+                       Margin="0,8,0,4"/>
+
+                <!-- Displays guidance for the expected sensor reading. -->
+                <TextBlock x:Name="ValueHint"
+                       TextWrapping="Wrap"
+                       Foreground="#C8DED5"/>
+
+                <!-- Groups the reading input controls horizontally. See WPF UI DESIGN - C# Design Pro, 2022.-->
+                <WrapPanel>
+
+                    <!-- Allows users to type numerical or textual readings. -->
+                    <TextBox x:Name="PacketValue"
+                         Width="160"
+                         Padding="8"
+                         Margin="0,6,10,6"
+                         MaxLength="30"
+                         AutomationProperties.Name="Typed sensor reading value"/>
+
+                    <!--Used for sensor or actuator profiles that require a Boolean On/Off value instead of typed input.-->
+                    <ComboBox x:Name="SwitchValue"
+                          Width="160"
+                          Height="36"
+                          Margin="0,6,10,6"
+                          Visibility="Collapsed"
+                          SelectedIndex="0"
+                          AutomationProperties.Name="Reported actuator state">
+
+                        <ComboBoxItem Content="Off (false)"/>
+                        <ComboBoxItem Content="On (true)"/>
+
+                    </ComboBox>
+
+                    <Button x:Name="SendPacketButton"
+                        Content="Send profile reading"
+                        Click="SendPacket_Click"
+                        Style="{StaticResource ProfileButton}"/>
+
+                </WrapPanel>
+
+            </StackPanel>
+
+            <!-- Allows an active file transfer operation to be cancelled. The button remains hidden when no transfer is taking place.-->
+            <Button x:Name="CancelTransferButton"
+                Content="Cancel transfer"
+                Click="Cancel_Click"
+                Style="{StaticResource ProfileButton}"
+                HorizontalAlignment="Left"
+                Visibility="Collapsed"/>
+
+            <!--Displays profile-level feedback and exposes updates to assistive technologies.-->
+            <TextBlock x:Name="ProfileStatus"
+                   TextWrapping="Wrap"
+                   Foreground="#B9D8C9"
+                   Margin="0,6,0,0"
+                   AutomationProperties.LiveSetting="Polite"/>
+
+        </StackPanel>
+    </Border>
+</UserControl>
+
+
+<!--
+    REFERENCE LIST
+-->
+
+<!-- WPF UI DESIGN – C# Design Pro. 2022. YouTube video, added by C# Design Pro. [Online]. Available at: https://youtube.com/playlist?list=PLvA3V2O0S6Rhyt6KY1pZOl1mS0bdE3sFI&si=PxbgyECXq3fp0uLA  [Accessed 10 September 2026]. -->
+
+<!-- WPF XAML (Material Design UI)| C# - C# Code Academy. 2021. Youtube video, added by C# Code Academy. [Online]. Available at: https://youtube.com/playlist?list=PLBRjmHe78giWTi7oJpjXtk0Oz1j-ETzVJ&si=MkN__TlC6rAJra-R [Accessed 10 September 2026]. -->

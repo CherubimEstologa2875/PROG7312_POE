@@ -1,0 +1,217 @@
+# Smart-X IoT Gateway
+
+# YOUTUBE DEMO LINK
+https://youtu.be/EZ_6AoL5jGI 
+
+WPF gateway and telemetry dashboard for ST10443277 PROG7312 Part 1 project, connected to an ASP.NET Core Web API.
+
+## Prerequisites
+
+- Windows: the client is a WPF desktop application targeting .NET Framework 4.7.2.
+- Visual Studio 2022 with the .NET desktop development and ASP.NET and web development workloads. Use an installation that supports the project's .NET 9 SDK.
+- .NET Framework 4.7.2 targeting pack/developer pack for compiling the client. In Visual Studio Installer, select the corresponding individual components if they are missing.
+- .NET 9 SDK for compiling and running the backend, which targets `net9.0`. A runtime-only installation cannot compile the API.
+- Internet access for the initial installation and dependency restore.
+
+The projects currently use framework-provided dependencies and shared source files; no database server, API key, or separate NuGet package installation is required. The backend stores data in local JSON files and an attachment directory.
+
+## 1. Open the project
+
+Clone or extract the complete repository, including the `Shared` folder. Open Developer PowerShell for VS 2022 from the Windows Start menu so that both `MSBuild` and `dotnet` are available.
+
+Change to the repository root: the directory containing this `README.md`, `tests`, and the outer `ST10443277_PROG7312` folder. Replace the example path with your actual download location:
+
+```powershell
+Set-Location 'C:\path\to\ST10443277_PROG7312_POE_PT1'
+dotnet --list-sdks
+MSBuild -version
+```
+
+Confirm that a `9.0.xxx` SDK is listed. All commands below assume this repository root as the working directory unless stated otherwise. Keep paths quoted if they contain spaces.
+
+## 2. Restore dependencies
+
+Restore the complete solution using Visual Studio's MSBuild:
+
+```powershell
+MSBuild .\ST10443277_PROG7312\ST10443277_PROG7312.sln /t:Restore
+```
+
+An “all projects are up-to-date” message is normal when the required restore assets already exist. Shared contracts are compiled into both projects automatically through their project files.
+
+## 3. Compile the solution
+
+Build both the API and WPF client in Debug configuration:
+
+```powershell
+MSBuild .\ST10443277_PROG7312\ST10443277_PROG7312.sln /t:Build /p:Configuration=Debug /verbosity:minimal
+```
+
+Wait for the build to finish successfully before starting either application. The outputs are:
+
+- Backend: `ST10443277_PROG7312\SmartX.Api\bin\Debug\net9.0\SmartX.Api.dll`
+- Client: `ST10443277_PROG7312\ST10443277_PROG7312\bin\Debug\ST10443277_PROG7312.exe`
+
+Use Visual Studio's `MSBuild` for the complete solution because the client uses the classic .NET Framework WPF project format. To restore and build in one command, use:
+
+```powershell
+MSBuild .\ST10443277_PROG7312\ST10443277_PROG7312.sln /restore /t:Build /p:Configuration=Debug /verbosity:minimal
+```
+
+## 4. Boot the backend API
+
+In the first terminal, run the API on the address expected by the client:
+
+```powershell
+dotnet run --project .\ST10443277_PROG7312\SmartX.Api\SmartX.Api.csproj --configuration Debug --no-build --no-launch-profile -- --urls http://localhost:5080
+```
+
+Keep this terminal open while using the client. Wait for the console to report `Now listening on: http://localhost:5080`.
+
+The explicit URL and `--no-launch-profile` make this command use HTTP port 5080 consistently. The checked-in Visual Studio launch profile contains different ports (`54326` for HTTPS and `54327` for HTTP), while the client's default address is `http://localhost:5080/`.
+
+### Swagger UI
+
+The API includes an interactive OpenAPI page generated from its minimal API endpoints. With the API running locally, open:
+
+```text
+http://localhost:5080/swagger
+```
+
+The raw OpenAPI document is available at `http://localhost:5080/swagger/v1/swagger.json`.
+
+### Run the API with Docker
+
+Docker Desktop must be running. From the repository root, build and start the API with:
+
+```powershell
+docker compose up --build
+```
+
+The container maps its HTTP port to `http://localhost:5080`. Check `http://localhost:5080/health` or open Swagger UI at `http://localhost:5080/swagger`. The Compose configuration stores the API's JSON data in the named `smartx-data` volume, so the data remains available after the container is recreated.
+
+To stop the API, press `Ctrl+C` or run:
+
+```powershell
+docker compose down
+```
+
+To stop it and intentionally delete the persisted Docker data as well, run `docker compose down -v`.
+
+In a second PowerShell terminal, verify that the backend is ready:
+
+```powershell
+Invoke-RestMethod 'http://localhost:5080/health'
+```
+
+The response should contain `Status` with the value `Healthy`. You can also open [the health endpoint](http://localhost:5080/health) in a browser. The API's root URL does not serve the desktop interface; use `/health` to check availability.
+
+## 5. Run the client user interface
+
+In the second terminal, change to the same repository root and run:
+
+```powershell
+$env:SMARTX_API_URL = 'http://localhost:5080/'
+Start-Process '.\ST10443277_PROG7312\ST10443277_PROG7312\bin\Debug\ST10443277_PROG7312.exe'
+```
+
+The Smart-X gateway window should appear. To try the implemented workflow:
+
+1. Select Open telemetry on the gateway screen.
+2. Enter a device ID, deployment location, and category, or select Simulate details to populate the form.
+3. Select Register sensor to save the device. Simulating details alone does not save it.
+4. Select its registry row to open the sensor profile, attach files, or submit a reading for that sensor.
+5. Inspect the telemetry dashboard and filters. Select Refresh, or wait for the automatic 15-second refresh.
+
+A new data directory starts with empty storage; register devices and submit readings to populate it. The gateway now includes the Part 2 command stream; mesh routing remains reserved for the final PoE.
+
+To stop the application, close the client window and press Ctrl+C in the backend terminal.
+
+## Running the client from Visual Studio
+
+1. Open `ST10443277_PROG7312\ST10443277_PROG7312.sln` in Visual Studio.
+2. Right-click the solution and select Restore NuGet Packages, then select Build > Build Solution with the Debug / Any CPU configuration.
+3. Start the backend in a separate terminal using the command in step 4 above.
+4. Right-click the ST10443277_PROG7312 desktop project and select Set as Startup Project.
+5. Press F5 to debug the client or Ctrl+F5 to run it without debugging. Keep the backend terminal running.
+
+The client's `ST10443277_PROG7312\ST10443277_PROG7312\App.config` sets `TelemetryApiBaseUrl` to `http://localhost:5080/`. The environment variable `SMARTX_API_URL`, when present in the client process, takes precedence. If you change the server port, set this variable before launching the client, or update `App.config` and rebuild. Restart an already running client after changing its configuration.
+
+## Local data storage
+
+When launched using the documented `dotnet run` command, backend data is stored beneath `ST10443277_PROG7312\SmartX.Api\App_Data`:
+
+- `telemetry.json`: submitted telemetry readings.
+- `sensors.json`: registered sensors.
+- `packets.json`: typed packet history.
+- `attachments\index.json` and attachment files: uploaded files and their metadata.
+
+Directories are created automatically; data files are written as records are saved and persist between runs. The application needs write access to this location. Stop the backend before backing up or restoring the directory, and keep the attachment index and its files together.
+
+## Optional integration verification
+
+After a successful Debug build, run the included feature suite from the repository root using Windows PowerShell 5.1 (`powershell.exe`):
+
+```powershell
+powershell.exe -NoProfile -STA -File .\tests\FeatureIntegration.Tests.ps1
+```
+
+This suite also runs `ApiIntegration.Tests.ps1`, starts its own backend on port `5089`, and uses isolated storage under the API's `bin\integration` directory. Ensure that port is free. To select another test port, append `-Port 5091`. Windows PowerShell is required here because the tests load the .NET Framework WPF client assemblies.
+
+## Troubleshooting
+
+| Problem | What to check |
+| --- | --- |
+| `dotnet` or `MSBuild` is not recognised | Install the prerequisites and reopen Developer PowerShell for VS 2022. |
+| The SDK cannot target .NET 9 | Confirm `dotnet --list-sdks` includes .NET 9 and use a Visual Studio installation that supports that SDK. |
+| .NET Framework 4.7.2 reference assemblies are missing | Install the 4.7.2 targeting/developer pack through Visual Studio Installer, then rebuild. |
+| The client cannot connect or displays cached data | Keep the API running, check `/health`, and confirm that `SMARTX_API_URL` or `TelemetryApiBaseUrl` matches the API's listening address. |
+| Port 5080 is already in use | Stop the conflicting server you started, or choose another port in `--urls` and use the same address for the client. |
+| A browser shows 404 at the API root | Check `/health`; launch the WPF executable for the user interface. |
+| Build output files are locked | Close the running client and stop the backend, then rebuild. |
+| The API reports invalid persisted data or missing attachments | Inspect the startup error and restore a consistent backup of the affected data. Startup validation rejects corrupt records instead of clearing them automatically. |
+
+### Research engagement strategy
+
+The implemented strategy is interactive telemetry visualisation with proactive anomaly alerts, refreshed every 15 seconds. The supplied `ST10443277_PROG7312_POE PT 1_RESEARCH.docx` selects this combined strategy, and its core features and supporting dashboard diagram match the implementation. The application uses near-real-time polling, a fixed five-minute disconnect timeout, and sensor/location/category/time filters; immediate push updates, per-device reporting intervals and a dedicated alert-status filter are not implemented. See [the implementation guide](TASK2_IMPLEMENTATION_AUDIT.md) for the research comparison.
+
+- Threshold guides show the alert boundary on numeric charts; actuator charts use Off/On steps.
+- Hover over the chart to inspect the nearest reading's value and timestamp.
+- Alert cards show the sensor, location, actual value, change from the previous reading, and a contextual troubleshooting suggestion.
+- Investigate sensor focuses the chart and filters on the alert's sensor and measurement type. Reset returns to the overall selection.
+- The investigation summary reports the latest value, change, connection state, and whether cached data is being used.
+- The power summary aggregates each reporting meter's latest value within the current filters. It excludes meters with readings older than five minutes. It is a latest-snapshot total, not a time-synchronised electrical measurement.
+
+The command screen polls its bounded API queue and indexed device-state feed every five seconds. It supports device/location search, category filtering and active-alert-only filtering. Commands are persisted in `App_Data/commands.json`, remain queued until acknowledged, and are also retained as history. Boolean reports in telemetry remain telemetry; device actions use the separate command endpoint.
+
+The real-time API processing path uses a FIFO `Queue<T>` for ordinary telemetry, a priority queue for critical power/moisture alerts, a `Stack<T>` for manual override undo, a device dictionary for O(1) live-state lookup, a `SortedDictionary` for timestamp-indexed timeline logs, and a `HashSet` for unique active alert/disconnect states.
+
+The command dashboard also posts search/filter activity to the predictive action engine. The engine retains bounded query history, counts transitions between searches, combines those patterns with live threshold alerts, and presents confidence-scored Suggested Actions / Automated Insights. Available endpoints are `POST /api/insights/search` and `GET /api/insights`.
+
+## Source layout
+
+The paths below are relative to the outer `ST10443277_PROG7312` directory, except `tests`, which is at the repository root.
+
+- `SmartX.Api/Program.cs`: minimal API endpoints and HTTP configuration.
+- `SmartX.Api/Validation/TelemetryValidation.cs`: request and timestamp validation.
+- `SmartX.Api/Stores/TelemetryStore.cs`: bounded, file-backed telemetry storage.
+- `SmartX.Api/Stores/SensorRegistrationStore.cs`: persistent sensor registry and duplicate protection.
+- `SmartX.Api/Stores/AttachmentStore.cs` and `SmartX.Api/Endpoints/ProfileEndpoints.cs`: streamed file storage, profile endpoints and typed ingestion.
+- `SmartX.Api/Stores/PacketStore.cs`: generic typed history ingestion and persistence.
+- `SmartX.Api/Stores/CommandStore.cs`: bounded command queue, delivery state and persisted history.
+- `SmartX.Api/Stores/TelemetryStore.cs`: bounded telemetry history plus an indexed latest-state lookup for live device cards.
+- `Shared/TelemetryStructures.cs`: generic packets, jagged arrays, typed histories and power operators.
+- `Shared/ProfileContracts.cs`: attachment metadata and recursive deployment validation.
+- `Shared/SensorRegistrationContracts.cs`: shared registration DTOs, validation and MAC normalization.
+- `Shared/TelemetryContracts.cs`: request/response DTOs compiled into both projects.
+- `Shared/CommandContracts.cs`: command request, status and history DTOs compiled into both projects.
+- `ST10443277_PROG7312/TelemetryApiClient.cs`: asynchronous HTTP and JSON handling.
+- `ST10443277_PROG7312/TelemetryDashboard.xaml` and code-behind: dashboard, submission form, refresh, filters and chart.
+- `ST10443277_PROG7312/SensorRegistrationPanel.xaml` and code-behind: registration form, simulation, JSON import and registry table.
+- `ST10443277_PROG7312/SensorProfilePanel.xaml` and code-behind: selected sensor files, transfers and typed reading submission.
+- `ST10443277_PROG7312/MainWindow.xaml` and code-behind: gateway and navigation.
+- `ST10443277_PROG7312/CommandStream.xaml` and code-behind: asynchronous command submission, polling and history.
+- `tests/ApiIntegration.Tests.ps1`: API and WPF integration verification.
+- `tests/FeatureIntegration.Tests.ps1`: attachments, engagement and advanced C# concept verification.
+
+The multipart implementation follows Microsoft's [ASP.NET Core file upload guidance](https://learn.microsoft.com/en-us/aspnet/core/mvc/models/file-uploads?view=aspnetcore-9.0), using streaming to avoid buffering whole uploads in application memory.

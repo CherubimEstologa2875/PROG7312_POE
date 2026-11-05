@@ -1,0 +1,512 @@
+<Window x:Class="ST10443277_PROG7312.MainWindow"
+     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+     xmlns:local="clr-namespace:ST10443277_PROG7312"
+     Title="Smart-X | IoT Gateway" Width="1140" Height="780"
+     MinWidth="700" MinHeight="500" ResizeMode="CanResize" WindowStartupLocation="CenterScreen"
+     Background="#F4F7FA" FontFamily="Segoe UI" FontSize="14"
+     Foreground="#182B40" UseLayoutRounding="True">
+
+    <Window.Resources>
+
+<!--Default TextBlock style. Allows text to wrap automatically when there is not enoughhorizontal space available.-->
+        <Style TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        
+<!-- Reusable style for action buttons in the application. Defines the button colours, spacing, font, cursor and alignment.-->
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Background" Value="#126B60" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="#126B60" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="18,12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+
+            <!-- see WPF UI DESIGN - C# Design Pro, 2022-->
+
+        <!-- Custom button template used to give buttons rounded corners and control their appearance during interaction.-->
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+
+                        <!-- see WPF XAML (Material Design UI) | C# - C# Code Academy, 2021-->
+
+        <!-- Border forms the visible body of the button. TemplateBinding uses properties supplied bythe Button or its style.-->
+                        <Border x:Name="ButtonBorder"
+                            CornerRadius="6"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}">
+
+        <!-- Displays the Content property of the buttonand centres it vertically and horizontally.-->
+                            <ContentPresenter
+                            Margin="{TemplateBinding Padding}"
+                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalAlignment="Center"
+                            RecognizesAccessKey="True" />
+
+                            <!-- see WPF UI DESIGN - C# Design Pro, 2022-->
+
+                        </Border>
+
+        <!-- Triggers change the appearance of the button depending on its current state.-->
+                        <ControlTemplate.Triggers>
+
+                            <!-- Darkens the button when the mouse is over it. -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder"
+                                    Property="Background"
+                                    Value="#0C554D" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+
+        <!-- Darkens the button further while it is actively being pressed.-->
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder"
+                                    Property="Background"
+                                    Value="#083E39" />
+                            </Trigger>
+
+        <!-- Provides a visible focus indicator for keyboard navigation and accessibility.-->
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+
+                                <!-- see WPF UI DESIGN - C# Design Pro, 2022-->
+
+                                <Setter TargetName="ButtonBorder"
+                                    Property="BorderBrush"
+                                    Value="#D09316" />
+                                <Setter TargetName="ButtonBorder"
+                                    Property="BorderThickness"
+                                    Value="3" />
+                            </Trigger>
+
+        <!-- Gives disabled buttons a grey appearance and changes the cursor back to the normal arrow.-->
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ButtonBorder"
+                                    Property="Background"
+                                    Value="#EEF1F5" />
+                                <Setter TargetName="ButtonBorder"
+                                    Property="BorderBrush"
+                                    Value="#DCE3EB" />
+                                <Setter Property="Foreground" Value="#576579" />
+                                <Setter Property="Cursor" Value="Arrow" />
+                            </Trigger>
+
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Reusable style for the three main module cards displayed on the Smart-X gateway landing page.-->
+        <Style x:Key="PillarCard" TargetType="Border">
+
+            <!-- see WPF UI DESIGN - C# Design Pro, 2022-->
+
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#DCE3EB" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="24" />
+        </Style>
+
+        <!-- Defines a consistent heading style for titles displayed inside each module card. -->
+        <Style x:Key="CardHeading" TargetType="TextBlock">
+
+            <!-- see WPF XAML (Material Design UI) | C# - C# Code Academy, 2021-->
+
+            <Setter Property="FontSize" Value="22" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="LineHeight" Value="29" />
+            <Setter Property="Margin" Value="0,22,0,14" />
+        </Style>
+
+        <!-- Reusable style for descriptive or secondary text. The grey foreground separates supporting text visually from headings and primary information.-->
+        <Style x:Key="Description" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#576579" />
+
+            <!-- see WPF UI DESIGN - C# Design Pro, 2022-->
+
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="LineHeight" Value="23" />
+        </Style>
+
+    </Window.Resources>
+
+
+    <!-- MAIN WINDOW LAYOUT: DockPanel divides the application into a header, footer and scrollable central content area. -->
+    <DockPanel>
+
+        <!-- HEADER: Displays Smart-X branding on the left and identifies the current interface as the Gateway Console on the right.-->
+        <Border x:Name="GatewayHeader"
+            DockPanel.Dock="Top"
+            Background="#142C40"
+            Padding="32,20">
+
+            <Grid>
+
+                <!-- First column expands to fill available space. Second column only uses the width required by the Gateway Console label.-->
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- see WPF UI DESIGN - C# Design Pro, 2022-->
+
+                <!-- Smart-X logo and application branding. -->
+                <StackPanel Orientation="Horizontal"
+                        VerticalAlignment="Center">
+
+                    <!-- Decorative coloured logo block. -->
+                    <Border Background="#2DD4B0"
+                        CornerRadius="8"
+                        Width="38"
+                        Height="38"
+                        Margin="0,0,12,0">
+                    </Border>
+
+                    <!-- Application name and ecosystem subtitle. -->
+                    <StackPanel>
+                        <TextBlock Text="SMART-X"
+                               FontSize="20"
+                               FontWeight="Bold"
+                               Foreground="White" />
+
+                        <TextBlock Text="IoT MESH ECOSYSTEM"
+                               FontSize="10"
+                               Foreground="#B7CADA" />
+                    </StackPanel>
+
+                </StackPanel>
+
+                <!-- Label displayed on the right side of the header toidentify the current application area.-->
+                <Border Grid.Column="1"
+                    BorderBrush="#466073"
+                    BorderThickness="1"
+                    CornerRadius="16"
+                    Padding="14,7"
+                    VerticalAlignment="Center">
+
+                    <TextBlock Text="Gateway console"
+                           Foreground="#DCE7EE"
+                           FontSize="12" />
+
+                    <!-- see WPF XAML (Material Design UI) | C# - C# Code Academy, 2021-->
+
+                </Border>
+            </Grid>
+        </Border>
+
+
+        <!-- FOOTER: Displays the project/task information and student/module identification.-->
+        <Border x:Name="GatewayFooter"
+            DockPanel.Dock="Bottom"
+            Padding="32,14"
+            BorderBrush="#DCE3EB"
+            BorderThickness="0,1,0,0">
+
+            <Grid>
+
+                <!-- Project and task information aligned to the left. -->
+                <TextBlock
+                Text="SMART-X  /  POE PART 1: TASK 2: INTERFACE"
+                Foreground="#576579"
+                FontSize="12" />
+
+                <!-- Module and student number aligned to the right. -->
+                <TextBlock
+                Text="PROG7312: ST10443277"
+                HorizontalAlignment="Right"
+                Foreground="#576579"
+                FontSize="12" />
+
+            </Grid>
+        </Border>
+
+
+        <!-- MAIN SCROLLABLE CONTENT: Allows the page to scroll vertically on smaller displays while preventing unnecessary horizontal scrolling.-->
+        <ScrollViewer x:Name="PageScroll"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+
+            <!-- Main content container. The maximum width prevents the interface from becoming excessively wide on large screens.-->
+            <Grid x:Name="PageContent"
+              Margin="32,32,32,28"
+              HorizontalAlignment="Stretch">
+
+
+                <!-- LANDING VIEW: Initial screen displayed when the gateway opens. Allows the user to select one of the three Smart-X IoT system modules.-->
+                <StackPanel x:Name="LandingView">
+
+                    <!-- Small introductory label. -->
+                    <TextBlock
+                    Text="YOUR CONNECTED ENVIRONMENT"
+                    FontSize="11"
+                    FontWeight="Bold"
+                    Foreground="#126B60" />
+
+                    <!-- Main page heading. -->
+                    <TextBlock
+                    Text="Welcome to your Smart-X gateway"
+                    FontSize="32"
+                    FontWeight="SemiBold"
+                    Margin="0,8,0,12" />
+
+                    <!-- Instructions explaining what the user should do. -->
+                    <TextBlock
+                    Text="Choose a module to get started."
+                    Style="{StaticResource Description}"
+                    FontSize="15" />
+
+                    <!-- see WPF UI DESIGN - C# Design Pro, 2022-->
+
+
+                    <!-- Section heading introducing the three IoT pillars. -->
+                    <Grid Margin="0,28,0,14">
+                        <TextBlock
+                        Text="Explore the three pillars"
+                        FontSize="16"
+                        FontWeight="SemiBold" />
+                    </Grid>
+
+
+                    <!-- Grid used to position the three module cards. Columns 1, 3 and 5 contain the cards while the 16-pixel columns create spacing between them. -->
+                    <Grid>
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+
+                        <!-- MODULE 1: SENSOR TELEMETRY: This module is available during Part 1 and lets the user access the telemetry dashboard. -->
+                        <Border Style="{StaticResource PillarCard}"
+                            BorderBrush="#126B60"
+                            Background="#FCFFFE">
+
+                            <Grid>
+
+                                <!-- Main content takes the available height. The action button remains at the bottom.-->
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <StackPanel>
+
+                                    <!-- see WPF UI DESIGN - C# Design Pro, 2022-->
+
+                                    <!-- Module number and category. -->
+                                    <TextBlock
+                                    Text="01   /   SENSOR TELEMETRY"
+                                    FontSize="11"
+                                    FontWeight="Bold"
+                                    Foreground="#126B60" />
+
+                                    <!-- Module heading. -->
+                                    <TextBlock
+                                    Text="Sensor Data Ingestion and Telemetry"
+                                    Style="{StaticResource CardHeading}" />
+
+                                    <!-- Description of the telemetry module. -->
+                                    <TextBlock
+                                    Text="The starting point for sensor registration and incoming readings across your connected environment."
+                                    Style="{StaticResource Description}" />
+
+                                    <!-- Status indicator showing module availability. -->
+                                    <Border Background="#E1F3ED"
+                                        CornerRadius="4"
+                                        Padding="9,5"
+                                        HorizontalAlignment="Left"
+                                        Margin="0,20,0,24">
+
+                                        <TextBlock
+                                        Text="Part 1 • Entry available"
+                                        FontSize="11"
+                                        Foreground="Green"
+                                        FontWeight="SemiBold" />
+
+                                    </Border>
+                                </StackPanel>
+
+                                <!--
+                                Opens the Sensor Data Ingestion and
+                                Telemetry dashboard.
+
+                                The Click property connects this button
+                                to OpenTelemetry_Click in the C#
+                                code-behind file.
+
+                                AutomationProperties.Name provides an
+                                accessible description for screen readers.
+                            -->
+                                <Button x:Name="OpenTelemetryButton"
+                                    Grid.Row="1"
+                                    Content="Open _telemetry  >"
+                                    Style="{StaticResource ActionButton}"
+                                    Click="OpenTelemetry_Click"
+                                    AutomationProperties.Name="Open Sensor Data Ingestion and Telemetry" />
+
+                            </Grid>
+                        </Border>
+
+
+                        <!-- MODULE 2: DEVICE COMMANDS: Represents the real-time device command feature. It is displayed in Part 1 but remains disabled until Part 2 of the project. -->
+                        <Border Grid.Column="2"
+                            Style="{StaticResource PillarCard}">
+
+                            <Grid>
+
+                                <Grid.RowDefinitions>
+
+                                    <!-- see WPF XAML (Material Design UI) | C# - C# Code Academy, 2021-->
+
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <StackPanel>
+
+                                    <!-- Module number and category. -->
+                                    <TextBlock
+                                    Text="02   /   DEVICE COMMANDS"
+                                    FontSize="11"
+                                    FontWeight="Bold"
+                                    Foreground="#576579" />
+
+                                    <!-- Module heading. -->
+                                    <TextBlock
+                                    Text="Real-Time Command Stream and History"
+                                    Style="{StaticResource CardHeading}" />
+
+                                    <!-- Description of the command module. -->
+                                    <TextBlock
+                                    Text="Issue device commands and follow the history of activity across your IoT environment."
+                                    Style="{StaticResource Description}" />
+
+                                    <!-- Indicates when the module will become available. -->
+                                    <TextBlock
+                                    Text="Part 2 • Entry available"
+                                    Foreground="#576579"
+                                    FontSize="12"
+                                    Margin="0,24,0,28" />
+
+                                </StackPanel>
+
+                                <Button x:Name="CommandStreamButton"
+                                    Grid.Row="1"
+                                    Content="Open _commands  >"
+                                    Style="{StaticResource ActionButton}"
+                                    Click="OpenCommands_Click"
+                                    AutomationProperties.Name="Open Real-Time Command Stream and History" />
+
+                            </Grid>
+                        </Border>
+
+
+                        <!-- MODULE 3: MESH CONNECTIVITY: Represents network topology and mesh routing. This feature is planned for the final PoE. -->
+                        <Border Grid.Column="4"
+                            Style="{StaticResource PillarCard}">
+
+                            <!-- see WPF XAML (Material Design UI) | C# - C# Code Academy, 2021-->
+
+                            <Grid>
+
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <StackPanel>
+
+                                    <!-- Module number and category. -->
+                                    <TextBlock
+                                    Text="03   /   MESH CONNECTIVITY"
+                                    FontSize="11"
+                                    FontWeight="Bold"
+                                    Foreground="#576579" />
+
+                                    <!-- Module heading. -->
+                                    <TextBlock
+                                    Text="Network Topology and Mesh Routing"
+                                    Style="{StaticResource CardHeading}" />
+
+                                    <!-- Description of the mesh networking module. -->
+                                    <TextBlock
+                                    Text="Explore sensor connections and trace the paths that carry data through your mesh network."
+                                    Style="{StaticResource Description}" />
+
+                                    <!-- Indicates when this feature will be implemented. -->
+                                    <TextBlock
+                                    Text="Coming in the final PoE"
+                                    Foreground="#576579"
+                                    FontSize="12"
+                                    Margin="0,24,0,28" />
+
+                                </StackPanel>
+
+                                <!-- Disabled placeholder button because mesh routing is reserved for the final PoE.-->
+                                <Button x:Name="MeshRoutingButton"
+                                    Grid.Row="1"
+                                    Content="Available in final PoE"
+                                    Style="{StaticResource ActionButton}"
+                                    IsEnabled="False"
+                                    AutomationProperties.Name="Network Topology and Mesh Routing, available in the final PoE" />
+
+                            </Grid>
+                        </Border>
+
+                    </Grid>
+
+
+                    <!-- Additional guidance directs the user toward the only module currently available in this project phase. -->
+                    <TextBlock
+                    Text="Use the navigation cards to move between telemetry and the live command stream. Your current view remains loaded while the API is polled asynchronously."
+                    Style="{StaticResource Description}"
+                    FontSize="12"
+                    Margin="0,18,0,0" />
+
+                    <!-- see WPF XAML (Material Design UI) | C# - C# Code Academy, 2021-->
+
+                </StackPanel>
+
+
+                <!--
+                TELEMETRY DASHBOARD
+                Custom UserControl containing the sensor telemetry
+                interface.
+
+                It starts hidden because the LandingView is displayed
+                when the application first opens.
+
+                BackRequested connects the dashboard's custom back event
+                to BackToGateway_Click in the MainWindow code-behind.-->
+                <local:TelemetryDashboard
+                x:Name="TelemetryView"
+                Visibility="Collapsed"
+                BackRequested="BackToGateway_Click" />
+
+                <local:CommandStream
+                x:Name="CommandView"
+                Visibility="Collapsed"
+                BackRequested="BackToGateway_Click" />
+
+            </Grid>
+        </ScrollViewer>
+    </DockPanel>
+</Window>
+
+<!--
+    REFERENCE LIST
+-->
+
+<!-- WPF UI DESIGN – C# Design Pro. 2022. YouTube video, added by C# Design Pro. [Online]. Available at: https://youtube.com/playlist?list=PLvA3V2O0S6Rhyt6KY1pZOl1mS0bdE3sFI&si=PxbgyECXq3fp0uLA  [Accessed 10 September 2026]. -->
+
+<!-- WPF XAML (Material Design UI)| C# - C# Code Academy. 2021. Youtube video, added by C# Code Academy. [Online]. Available at: https://youtube.com/playlist?list=PLBRjmHe78giWTi7oJpjXtk0Oz1j-ETzVJ&si=MkN__TlC6rAJra-R [Accessed 10 September 2026]. -->

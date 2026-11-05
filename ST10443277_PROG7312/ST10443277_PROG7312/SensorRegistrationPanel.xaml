@@ -1,0 +1,313 @@
+<UserControl x:Class="ST10443277_PROG7312.SensorRegistrationPanel" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:ST10443277_PROG7312" Foreground="White" FontFamily="Segoe UI" FontSize="13">
+
+    <UserControl.Resources>
+
+        <!--Reusable TextBox style ensures that registration fields use consistent colours, padding and sizing.See WPF UI DESIGN - C# Design Pro, 2022.-->
+        <Style x:Key="Field" TargetType="TextBox">
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#20352F"/>
+            <Setter Property="CaretBrush" Value="#5C927B"/>
+            <Setter Property="BorderBrush" Value="#7FAE9A"/>
+            <Setter Property="MinHeight" Value="36"/>
+        </Style>
+
+        <!--Error style provides a consistent visual treatment for registration validation messages.See WPF XAML (Material Design UI) - C# Code Academy, 2021.-->
+        <Style x:Key="Error" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#B42318"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="0,5,0,0"/>
+            <Setter Property="AutomationProperties.LiveSetting"
+                Value="Polite"/>
+        </Style>
+
+        <!--Reusable style for registration panel buttons.See WPF UI DESIGN - C# Design Pro, 2022.-->
+        <Style x:Key="PanelButton" TargetType="Button">
+            <Setter Property="Padding" Value="14,9"/>
+            <Setter Property="Margin" Value="0,0,10,8"/>
+            <Setter Property="Background" Value="#2F6B5D"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#5C927B"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+
+        <!--Defines formatting used by text displayed inside the sensor registry DataGrid.-->
+        <Style x:Key="RegistryCellText" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="8,6"/>
+        </Style>
+
+    </UserControl.Resources>
+
+
+    <!--Main card-style container for the sensor registration area.See WPF XAML (Material Design UI) - C# Code Academy, 2021.-->
+    <Border Background="#1B4D43"
+        BorderBrush="#2F6B5D"
+        BorderThickness="1"
+        CornerRadius="8"
+        Padding="18">
+
+        <!--Expander allows the registration section to be collapsed or expanded while keeping related controls grouped together.See WPF UI DESIGN - C# Design Pro, 2022.-->
+        <Expander Header="Sensor registration"
+              Foreground="White"
+              IsExpanded="True">
+
+            <StackPanel Margin="0,14,0,0">
+
+                <!-- Registration instructions. -->
+                <TextBlock Text="Register a device before it starts sending data. Enter its details, generate a simulated record, or load a JSON record."
+                       Foreground="#C8DED5"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,14"/>
+
+
+                <!--Contains the draft sensor information entered before the record is saved.-->
+                <StackPanel x:Name="DraftFields">
+
+                    <!--WrapPanel arranges the three registration fields horizontally while allowing responsive wrapping.See WPF UI DESIGN - C# Design Pro, 2022.-->
+                    <WrapPanel>
+
+                        <!-- Device identifier field. -->
+                        <StackPanel Width="240"
+                                Margin="0,0,16,12">
+
+                            <Label Content="Device MAC address / unique ID *"
+                               Target="{Binding ElementName=DeviceIdInput}"
+                               Foreground="White"
+                               Padding="0,0,0,5"/>
+
+                            <TextBox x:Name="DeviceIdInput"
+                                 Style="{StaticResource Field}"
+                                 MaxLength="64"
+                                 AutomationProperties.Name="Device MAC address or unique identifier"/>
+
+                            <TextBlock Text="e.g. AA:BB:CC:DD:EE:01 or PUMP-01"
+                                   FontSize="11"
+                                   Foreground="#C8DED5"
+                                   Margin="0,5,0,0"/>
+
+                            <!-- Validation error for device ID input. -->
+                            <TextBlock x:Name="DeviceIdError"
+                                   Style="{StaticResource Error}"/>
+
+                        </StackPanel>
+
+
+                        <!-- Deployment location field. -->
+                        <StackPanel Width="220"
+                                Margin="0,0,16,12">
+
+                            <Label Content="Deployment location *"
+                               Target="{Binding ElementName=LocationInput}"
+                               Foreground="White"
+                               Padding="0,0,0,5"/>
+
+                            <TextBox x:Name="LocationInput"
+                                 Style="{StaticResource Field}"
+                                 MaxLength="80"
+                                 AutomationProperties.Name="Sensor deployment location"/>
+
+                            <TextBlock Text="e.g. Greenhouse / Zone B / Node 3"
+                                   FontSize="11"
+                                   Foreground="#C8DED5"
+                                   Margin="0,5,0,0"/>
+
+                            <TextBlock x:Name="LocationError"
+                                   Style="{StaticResource Error}"/>
+
+                        </StackPanel>
+
+
+                        <!-- Sensor category selection field. -->
+                        <StackPanel Width="220"
+                                Margin="0,0,0,12">
+
+                            <Label Content="Sensor category *"
+                               Target="{Binding ElementName=CategoryInput}"
+                               Foreground="White"
+                               Padding="0,0,0,5"/>
+
+                            <ComboBox x:Name="CategoryInput"
+                                  Height="36"
+                                  Margin="0"
+                                  Background="#F8FBF9"
+                                  Foreground="#20352F"
+                                  BorderBrush="#7FAE9A"
+                                  SelectedIndex="-1"
+                                  AutomationProperties.Name="Sensor registration category"/>
+
+                            <TextBlock Text="Choose one of the three device categories."
+                                   FontSize="11"
+                                   TextWrapping="Wrap"
+                                   Foreground="#C8DED5"
+                                   Margin="0,5,0,0"/>
+
+                            <TextBlock x:Name="CategoryError"
+                                   Style="{StaticResource Error}"/>
+
+                        </StackPanel>
+
+                    </WrapPanel>
+
+
+                    <!--Registration action buttons share the PanelButton style for a consistent interface.See WPF UI DESIGN - C# Design Pro, 2022.-->
+                    <WrapPanel>
+
+                        <Button x:Name="RegisterButton"
+                            Content="_Register sensor"
+                            Click="Register_Click"
+                            Style="{StaticResource PanelButton}"
+                            Background="#5C927B"
+                            Foreground="White"
+                            BorderBrush="#7FAE9A"
+                            FontWeight="SemiBold"/>
+
+                        <Button x:Name="SimulateButton"
+                            Content="Simulate details"
+                            Click="Simulate_Click"
+                            Style="{StaticResource PanelButton}"/>
+
+                        <Button x:Name="ImportButton"
+                            Content="Load JSON record…"
+                            Click="Import_Click"
+                            Style="{StaticResource PanelButton}"/>
+
+                        <Button x:Name="ClearButton"
+                            Content="Clear form"
+                            Click="Clear_Click"
+                            Style="{StaticResource PanelButton}"/>
+
+                    </WrapPanel>
+
+                </StackPanel>
+
+
+                <!--Communicates registration status to the user.LiveSetting enables accessible status announcements.-->
+                <TextBlock x:Name="FormStatus"
+                       Text="All three fields are required. Generated or loaded details are saved only when you select Register sensor."
+                       Foreground="#C8DED5"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,16"
+                       AutomationProperties.LiveSetting="Polite"/>
+
+
+                <!--DockPanel keeps the refresh button aligned right whilethe registry heading remains on the left.See WPF UI DESIGN - C# Design Pro, 2022.-->
+                <DockPanel Margin="0,0,0,8">
+
+                    <Button x:Name="RefreshRegistryButton"
+                        DockPanel.Dock="Right"
+                        Content="Refresh registry"
+                        Click="Refresh_Click"
+                        Style="{StaticResource PanelButton}"
+                        Margin="12,0,0,0"/>
+
+                    <TextBlock x:Name="RegistryCount"
+                           Text="Registered sensors"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"/>
+
+                </DockPanel>
+
+
+                <!--DataGrid displays all registered sensor records.Explicitly defined columns provide consistent control over the displayed registry fields.See WPF XAML (Material Design UI) - C# Code Academy, 2021.-->
+                <DataGrid x:Name="RegistryGrid"
+                      Height="170"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      CanUserReorderColumns="False"
+                      MinColumnWidth="140"
+                      Background="#214F46"
+                      Foreground="White"
+                      RowBackground="#214F46"
+                      AlternatingRowBackground="#2A5D51"
+                      BorderBrush="#5C927B"
+                      GridLinesVisibility="Horizontal"
+                      HorizontalGridLinesBrush="#3B7666"
+                      HeadersVisibility="Column"
+                      SelectionMode="Single"
+                      FontSize="12"
+                      SelectionChanged="ProfileSelection_Changed"
+                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                      AutomationProperties.Name="Registered sensor records">
+
+                    <!--Styling for DataGrid column headings.See WPF XAML (Material Design UI) - C# Code Academy, 2021.-->
+                    <DataGrid.Resources>
+
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background"
+                                Value="#2F6B5D"/>
+                            <Setter Property="Foreground"
+                                Value="White"/>
+                            <Setter Property="Padding"
+                                Value="8"/>
+                            <Setter Property="FontWeight"
+                                Value="SemiBold"/>
+                        </Style>
+
+                    </DataGrid.Resources>
+
+
+                    <!--Data bindings connect each grid column to a corresponding property in the registered sensor model.-->
+                    <DataGrid.Columns>
+
+                        <DataGridTextColumn
+                        Header="Device identifier"
+                        Binding="{Binding DeviceId}"
+                        Width="*"
+                        ElementStyle="{StaticResource RegistryCellText}"/>
+
+                        <DataGridTextColumn
+                        Header="Deployment location"
+                        Binding="{Binding Location}"
+                        Width="*"
+                        ElementStyle="{StaticResource RegistryCellText}"/>
+
+                        <DataGridTextColumn
+                        Header="Category"
+                        Binding="{Binding Category}"
+                        Width="*"
+                        ElementStyle="{StaticResource RegistryCellText}"/>
+
+                    </DataGrid.Columns>
+
+                </DataGrid>
+
+
+                <!-- Registry loading and operation status. -->
+                <TextBlock x:Name="RegistryStatus"
+                       Text="The registry loads when telemetry is opened."
+                       Foreground="#C8DED5"
+                       TextWrapping="Wrap"
+                       Margin="0,8,0,0"
+                       AutomationProperties.LiveSetting="Polite"/>
+
+                <!-- Instructions for selecting a registered sensor. -->
+                <TextBlock Text="Select a row to attach files or send a reading for that sensor."
+                       Foreground="#AFCFC2"
+                       FontSize="11"
+                       TextWrapping="Wrap"
+                       Margin="0,8,0,0"/>
+
+
+                <!--Custom SensorProfilePanel UserControl displays file management and reading functionality for the selected sensor.ReadingSaved links the child control event to the registration panel event handler.-->
+                <local:SensorProfilePanel
+                x:Name="ProfilePanel"
+                ReadingSaved="ProfileReadingSaved"/>
+
+            </StackPanel>
+
+        </Expander>
+
+    </Border>
+
+</UserControl>
+<!--
+    REFERENCE LIST
+-->
+
+<!-- WPF UI DESIGN – C# Design Pro. 2022. YouTube video, added by C# Design Pro. [Online]. Available at: https://youtube.com/playlist?list=PLvA3V2O0S6Rhyt6KY1pZOl1mS0bdE3sFI&si=PxbgyECXq3fp0uLA  [Accessed 10 September 2026]. -->
+
+<!-- WPF XAML (Material Design UI)| C# - C# Code Academy. 2021. Youtube video, added by C# Code Academy. [Online]. Available at: https://youtube.com/playlist?list=PLBRjmHe78giWTi7oJpjXtk0Oz1j-ETzVJ&si=MkN__TlC6rAJra-R [Accessed 10 September 2026]. -->

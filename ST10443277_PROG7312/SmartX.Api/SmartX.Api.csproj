@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/TelemetryContracts.cs" Link="Contracts/TelemetryContracts.cs" />
+    <Compile Include="../Shared/SensorRegistrationContracts.cs" Link="Contracts/SensorRegistrationContracts.cs" />
+    <Compile Include="../Shared/TelemetryStructures.cs" Link="Contracts/TelemetryStructures.cs" />
+    <Compile Include="../Shared/ProfileContracts.cs" Link="Contracts/ProfileContracts.cs" />
+    <Compile Include="../Shared/CommandContracts.cs" Link="Contracts/CommandContracts.cs" />
+    <Compile Include="../Shared/PredictiveContracts.cs" Link="Contracts/PredictiveContracts.cs" />
+  </ItemGroup>
+</Project>
