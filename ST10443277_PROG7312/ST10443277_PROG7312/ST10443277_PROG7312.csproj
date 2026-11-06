@@ -85,6 +85,9 @@
     <Compile Include="../Shared/TelemetryContracts.cs"><Link>Contracts/TelemetryContracts.cs</Link></Compile>
     <Compile Include="../Shared/CommandContracts.cs"><Link>Contracts/CommandContracts.cs</Link></Compile>
     <Compile Include="../Shared/PredictiveContracts.cs"><Link>Contracts/PredictiveContracts.cs</Link></Compile>
+    <Compile Include="../Shared/MeshContracts.cs"><Link>Contracts/MeshContracts.cs</Link></Compile>
+    <Page Include="MeshRouting.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
+    <Compile Include="MeshRouting.xaml.cs"><DependentUpon>MeshRouting.xaml</DependentUpon></Compile>
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>

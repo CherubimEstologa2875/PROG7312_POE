@@ -14,5 +14,6 @@
     <Compile Include="../Shared/ProfileContracts.cs" Link="Contracts/ProfileContracts.cs" />
     <Compile Include="../Shared/CommandContracts.cs" Link="Contracts/CommandContracts.cs" />
     <Compile Include="../Shared/PredictiveContracts.cs" Link="Contracts/PredictiveContracts.cs" />
+    <Compile Include="../Shared/MeshContracts.cs" Link="Contracts/MeshContracts.cs" />
   </ItemGroup>
 </Project>

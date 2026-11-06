@@ -45,6 +45,7 @@ builder.Services.AddSingleton<PacketStore>();
 builder.Services.AddSingleton<AttachmentStore>();
 builder.Services.AddSingleton<CommandStore>();
 builder.Services.AddSingleton<PredictiveActionEngine>();
+builder.Services.AddSingleton<MeshStore>();
 
 var app = builder.Build();
 
@@ -74,6 +75,7 @@ app.MapGet("/health", () => Results.Ok(new { Status = "Healthy" }));
 
 app.MapGet("/api/commands", (CommandStore store) => Results.Ok(store.Read()));
 app.MapGet("/api/device-states", (TelemetryStore store) => Results.Ok(store.ReadDeviceStates()));
+app.MapGet("/api/mesh", (string? sensorId, MeshStore store) => Results.Ok(store.Read(sensorId)));
 
 app.MapPost("/api/insights/search", (SearchActivity activity, PredictiveActionEngine engine) =>
 {
