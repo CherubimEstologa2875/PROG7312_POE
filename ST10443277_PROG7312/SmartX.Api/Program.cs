@@ -177,6 +177,16 @@ app.MapGet("/api/telemetry", (HttpRequest request, TelemetryStore store) =>
         errors["limit"] = ["limit must be between 1 and 10000."];
     if (errors.Count > 0) return Results.ValidationProblem(errors);
 
+    // A sensor-specific time window is a historical query. Route it through
+    // the per-sensor AVL index instead of scanning the retained list. The
+    // general multi-sensor/filter view below remains available for dashboard
+    // snapshots that do not identify one timestamp range.
+    if (query.ContainsKey("sensorId") && query.ContainsKey("from") && query.ContainsKey("to"))
+    {
+        var indexed = store.ReadRange(query["sensorId"].ToString(), from, to);
+        return Results.Ok(indexed.TakeLast(limit).ToArray());
+    }
+
     var readings = store.Read().Where(r =>
         (!query.ContainsKey("sensorId") || r.SensorId == query["sensorId"].ToString()) &&
         (!query.ContainsKey("location") || r.Location == query["location"].ToString()) &&

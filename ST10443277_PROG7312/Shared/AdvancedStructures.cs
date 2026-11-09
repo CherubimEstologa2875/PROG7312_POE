@@ -5,6 +5,11 @@ using System.Collections.Generic;
 
 namespace SmartX.Contracts
 {
+    // An AVL tree is a binary search tree whose height is kept logarithmic by
+    // rotations after insertion. Each sensor owns one tree keyed by the
+    // timestamp, so a range query visits only relevant branches plus matches.
+    // This gives O(log n + k) querying for k returned readings instead of
+    // scanning the complete retained telemetry list.
     public sealed class TelemetryAvlTree
     {
         private sealed class Node
@@ -18,8 +23,16 @@ namespace SmartX.Contracts
         }
         private Node root = (Node)(object)null;
         public int Count { get; private set; }
+        public int Height { get { return HeightOf(root); } }
         public void Add(DateTimeOffset key, TelemetryReading value) { bool added = false; root = Insert(root, key, value, ref added); if (added) Count++; }
-        public List<TelemetryReading> Range(DateTimeOffset from, DateTimeOffset to) { var result = new List<TelemetryReading>(); VisitRange(root, from, to, result); return result; }
+        public List<TelemetryReading> Range(DateTimeOffset from, DateTimeOffset to)
+        {
+            var result = new List<TelemetryReading>();
+            if (from > to) return result;
+            VisitRange(root, from, to, result);
+            return result;
+        }
+        public bool IsBalanced() { return IsBalanced(root); }
         private static Node Insert(Node node, DateTimeOffset key, TelemetryReading value, ref bool added)
         {
             if (node == null) { added = true; return new Node(key, value); }
@@ -34,9 +47,14 @@ namespace SmartX.Contracts
             if (node.Key >= from && node.Key <= to) result.AddRange(node.Values);
             if (node.Key < to) VisitRange(node.Right, from, to, result);
         }
-        private static int Height(Node node) { return node == null ? 0 : node.Height; }
-        private static void SetHeight(Node node) { node.Height = Math.Max(Height(node.Left), Height(node.Right)) + 1; }
-        private static int BalanceFactor(Node node) { return node == null ? 0 : Height(node.Left) - Height(node.Right); }
+        private static int HeightOf(Node node) { return node == null ? 0 : node.Height; }
+        private static void SetHeight(Node node) { node.Height = Math.Max(HeightOf(node.Left), HeightOf(node.Right)) + 1; }
+        private static int BalanceFactor(Node node) { return node == null ? 0 : HeightOf(node.Left) - HeightOf(node.Right); }
+        private static bool IsBalanced(Node node)
+        {
+            if (node == null) return true;
+            return Math.Abs(HeightOf(node.Left) - HeightOf(node.Right)) <= 1 && IsBalanced(node.Left) && IsBalanced(node.Right);
+        }
         private static Node Balance(Node node)
         {
             SetHeight(node); int factor = BalanceFactor(node);
