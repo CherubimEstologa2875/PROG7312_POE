@@ -75,6 +75,7 @@ app.MapGet("/health", () => Results.Ok(new { Status = "Healthy" }));
 
 app.MapGet("/api/commands", (CommandStore store) => Results.Ok(store.Read()));
 app.MapGet("/api/device-states", (TelemetryStore store) => Results.Ok(store.ReadDeviceStates()));
+app.MapGet("/api/device-dictionary", (TelemetryStore store) => Results.Ok(store.ReadDeviceDictionary()));
 app.MapGet("/api/mesh", (string? sensorId, MeshStore store) => Results.Ok(store.Read(sensorId)));
 
 app.MapPost("/api/insights/search", (SearchActivity activity, PredictiveActionEngine engine) =>
@@ -114,6 +115,7 @@ app.MapPost("/api/commands/undo", (CommandStore store, PredictiveActionEngine en
 });
 
 app.MapGet("/api/telemetry/timeline", (TelemetryStore store) => Results.Ok(store.ReadTimeline()));
+app.MapGet("/api/telemetry/timeline/summary", (TelemetryStore store) => Results.Ok(store.ReadTimelineSummary()));
 
 app.MapGet("/api/sensors", (SensorRegistrationStore store) => Results.Ok(store.Read()));
 
@@ -182,6 +184,16 @@ app.MapGet("/api/telemetry", (HttpRequest request, TelemetryStore store) =>
         DateTimeOffset.Parse(r.Timestamp) >= from && DateTimeOffset.Parse(r.Timestamp) <= to)
         .TakeLast(limit).ToArray();
     return Results.Ok(readings);
+});
+
+app.MapGet("/api/telemetry/range", (HttpRequest request, TelemetryStore store) =>
+{
+    string sensorId = request.Query["sensorId"].ToString();
+    if (string.IsNullOrWhiteSpace(sensorId) ||
+        !DateTimeOffset.TryParse(request.Query["from"], out var from) ||
+        !DateTimeOffset.TryParse(request.Query["to"], out var to) || from > to)
+        return Results.BadRequest(new { Error = "sensorId, from and to are required; from must be before to." });
+    return Results.Ok(store.ReadRange(sensorId, from, to));
 });
 
 app.Run();

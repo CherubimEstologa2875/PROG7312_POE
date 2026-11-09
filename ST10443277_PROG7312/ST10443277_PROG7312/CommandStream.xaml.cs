@@ -149,7 +149,7 @@ namespace ST10443277_PROG7312
             dictionaryInput = new TextBox { Width = 190, Padding = new Thickness(8, 6, 8, 6), Margin = new Thickness(12, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center };
             Grid.SetColumn(dictionaryInput, 1); layout.Children.Add(dictionaryInput);
             var actions = new StackPanel();
-            var lookup = new Button { Content = "Lookup device", Padding = new Thickness(12, 7), Background = new SolidColorBrush(Color.FromRgb(18, 107, 96)), Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Left };
+            var lookup = new Button { Content = "Lookup device", Padding = new Thickness(12, 7, 12, 7), Background = new SolidColorBrush(Color.FromRgb(18, 107, 96)), Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Left };
             lookup.Click += DictionaryLookup_Click; actions.Children.Add(lookup);
             dictionaryResult = new TextBlock { Foreground = new SolidColorBrush(Color.FromRgb(18, 107, 96)), Margin = new Thickness(0, 6, 0, 0) }; actions.Children.Add(dictionaryResult);
             Grid.SetColumn(actions, 2); layout.Children.Add(actions);
