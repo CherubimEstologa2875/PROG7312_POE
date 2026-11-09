@@ -38,7 +38,12 @@ namespace ST10443277_PROG7312
                 SummaryText.Text = topology.Nodes.Count + " nodes • graph " + topology.Links.Count + " links • MST " + topology.SpanningTreeLinks.Count + " links • BFS reached " + topology.ReachableFromGateway.Count + " • down " + topology.DownNodes.Count;
                 HistoryList.ItemsSource = history.OrderByDescending(r => ParseTimestamp(r.Timestamp)).ToList();
                 HistoryStatus.Text = history.Count + " readings returned by the AVL tree range query (last 24 hours) for " + (resolvedSensor ?? selected ?? "the selected sensor") + ".";
-                RouteList.ItemsSource = topology.Route.Select(r => r.Label + "  (cost " + r.CumulativeCost.ToString("0.0") + ")"); RouteText.Text = topology.Route.Count == 0 ? "Select a sensor to trace its route." : "Shortest path to Central Gateway"; DrawNetwork();
+                RouteList.ItemsSource = topology.Route.Select(r => r.Label + "  (cost " + r.CumulativeCost.ToString("0.0") + ")");
+                RouteText.Text = topology.Route.Count == 0 ? topology.RouteStatus : "Shortest active path to Central Gateway";
+                RecoveryText.Text = topology.DownNodes.Count == 0
+                    ? "BFS connected-subgraph traversal: all sensor nodes are online."
+                    : "BFS reached " + topology.ReachableFromGateway.Count + " online nodes. Down: " + string.Join(", ", topology.DownNodes) + ". " + topology.RouteStatus;
+                DrawNetwork();
             }
             catch (Exception error) { SummaryText.Text = "API unavailable: " + error.Message; }
         }
