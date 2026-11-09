@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using System.Windows.Media;
 using SmartX.Contracts;
 
 namespace ST10443277_PROG7312
@@ -17,6 +18,9 @@ namespace ST10443277_PROG7312
         private readonly ObservableCollection<CommandRow> rows = new ObservableCollection<CommandRow>();
         private readonly List<DeviceRow> devices = new List<DeviceRow>();
         private readonly ObservableCollection<InsightRow> insights = new ObservableCollection<InsightRow>();
+        private Dictionary<string, DeviceState> deviceDictionary = new Dictionary<string, DeviceState>(StringComparer.OrdinalIgnoreCase);
+        private TextBox dictionaryInput;
+        private TextBlock dictionaryResult;
         // Polling keeps the desktop view current while allowing the API to
         // remain independently deployable. The five-second interval is short
         // enough for the demo and avoids tying the UI to server-side events
@@ -31,6 +35,7 @@ namespace ST10443277_PROG7312
             HistoryList.ItemsSource = rows;
             DeviceList.ItemsSource = devices;
             InsightsList.ItemsSource = insights;
+            AddDataStructureEvidencePanel();
             CommandInput.SelectedIndex = 0;
             CategoryFilter.SelectedIndex = 0;
             Loaded += async (s, e) => { poller.Tick += async (a, b) => await LoadAsync(); poller.Start(); await LoadAsync(); };
@@ -47,10 +52,14 @@ namespace ST10443277_PROG7312
                 // Source: https://youtu.be/R94JHIXdTk0
                 var historyTask = api.GetCommandsAsync();
                 var statesTask = api.GetDeviceStatesAsync();
+                var dictionaryTask = api.GetDeviceDictionaryAsync();
+                var timelineTask = api.GetTimelineSummaryAsync();
                 var insightsTask = api.GetInsightsAsync();
-                await Task.WhenAll(historyTask, statesTask, insightsTask);
+                await Task.WhenAll(historyTask, statesTask, dictionaryTask, timelineTask, insightsTask);
                 var history = await historyTask;
                 var states = await statesTask;
+                deviceDictionary = await dictionaryTask;
+                var timeline = await timelineTask;
                 var insightResponse = await insightsTask;
                 rows.Clear();
                 foreach (var command in history.Items) rows.Add(new CommandRow(command));
@@ -60,6 +69,10 @@ namespace ST10443277_PROG7312
                 insights.Clear();
                 foreach (var suggestion in insightResponse.Suggestions) insights.Add(new InsightRow(suggestion));
                 PatternSummaryText.Text = insightResponse.PatternSummary;
+                if (dictionaryResult != null)
+                    dictionaryResult.Text = "Dictionary: " + deviceDictionary.Count + " device keys available. " +
+                        "Sorted timeline: " + timeline.ReadingCount + " readings" +
+                        (timeline.ReadingCount == 0 ? "." : " from " + FormatTimestamp(timeline.FirstTimestamp) + " to " + FormatTimestamp(timeline.LastTimestamp) + ".");
                 PendingText.Text = history.Pending + " queued";
                 StatusText.Text = "API CONNECTED • Updated " + DateTime.Now.ToString("HH:mm:ss");
             }
@@ -86,6 +99,62 @@ namespace ST10443277_PROG7312
             try { await api.AcknowledgeCommandAsync(row.Id); await LoadAsync(); } catch (Exception error) { StatusText.Text = "Could not acknowledge command • " + error.Message; }
         }
         private async void Refresh_Click(object sender, RoutedEventArgs e) { await LoadAsync(); }
+
+        private void DictionaryLookup_Click(object sender, RoutedEventArgs e)
+        {
+            string key = (dictionaryInput.Text ?? "").Trim();
+            DeviceState state;
+            if (key.Length == 0) { dictionaryResult.Text = "Enter a device ID or MAC address."; return; }
+            if (!deviceDictionary.TryGetValue(key, out state))
+            {
+                dictionaryResult.Text = "No device found for key: " + key;
+                return;
+            }
+            dictionaryResult.Text = "Found " + state.DeviceId + " • " + state.Location + " • " +
+                (state.Online ? "ONLINE" : "OFFLINE") + " • latest value " + state.Value.ToString("0.##", CultureInfo.CurrentCulture);
+        }
+
+        private static string FormatTimestamp(string timestamp)
+        {
+            DateTimeOffset value;
+            return DateTimeOffset.TryParse(timestamp, out value) ? value.ToLocalTime().ToString("dd MMM HH:mm:ss", CultureInfo.InvariantCulture) : timestamp;
+        }
+
+        private void AddDataStructureEvidencePanel()
+        {
+            var root = Content as Grid;
+            if (root == null) return;
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            foreach (UIElement child in root.Children)
+            {
+                if (Grid.GetRow(child) >= 3) Grid.SetRow(child, Grid.GetRow(child) + 1);
+            }
+            var panel = new Border
+            {
+                Background = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(220, 227, 235)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(14),
+                Margin = new Thickness(0, 0, 0, 16)
+            };
+            var layout = new Grid();
+            layout.ColumnDefinitions.Add(new ColumnDefinition());
+            layout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
+            var heading = new StackPanel();
+            heading.Children.Add(new TextBlock { Text = "DEVICE DICTIONARY LOOKUP", FontSize = 16, FontWeight = FontWeights.SemiBold });
+            heading.Children.Add(new TextBlock { Text = "O(1) lookup by device ID • chronological index summary", Foreground = new SolidColorBrush(Color.FromRgb(87, 101, 121)), Margin = new Thickness(0, 4, 0, 0) });
+            layout.Children.Add(heading);
+            dictionaryInput = new TextBox { Width = 190, Padding = new Thickness(8, 6, 8, 6), Margin = new Thickness(12, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(dictionaryInput, 1); layout.Children.Add(dictionaryInput);
+            var actions = new StackPanel();
+            var lookup = new Button { Content = "Lookup device", Padding = new Thickness(12, 7), Background = new SolidColorBrush(Color.FromRgb(18, 107, 96)), Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Left };
+            lookup.Click += DictionaryLookup_Click; actions.Children.Add(lookup);
+            dictionaryResult = new TextBlock { Foreground = new SolidColorBrush(Color.FromRgb(18, 107, 96)), Margin = new Thickness(0, 6, 0, 0) }; actions.Children.Add(dictionaryResult);
+            Grid.SetColumn(actions, 2); layout.Children.Add(actions);
+            panel.Child = layout; Grid.SetRow(panel, 3); root.Children.Add(panel);
+        }
         private async void Undo_Click(object sender, RoutedEventArgs e)
         {
             try
