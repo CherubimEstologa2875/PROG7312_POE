@@ -35,6 +35,9 @@ namespace SmartX.Contracts
         public string GatewayId { get; set; } = "gateway";
         public List<MeshNode> Nodes { get; set; } = new List<MeshNode>();
         public List<MeshLink> Links { get; set; } = new List<MeshLink>();
+        public List<MeshLink> SpanningTreeLinks { get; set; } = new List<MeshLink>();
+        public List<string> ReachableFromGateway { get; set; } = new List<string>();
+        public List<string> DownNodes { get; set; } = new List<string>();
         public List<MeshRouteHop> Route { get; set; } = new List<MeshRouteHop>();
         public double SpanningTreeCost { get; set; }
     }
@@ -78,15 +81,30 @@ namespace SmartX.Contracts
 
     public static class MeshRouting
     {
+        public static List<MeshLink> BuildCompleteGraph(IEnumerable<MeshNode> nodes)
+        {
+            // The simulated wireless graph is intentionally sparse: a mesh
+            // ring plus short-range skip links avoids O(n^2) edge generation
+            // when the gateway manages thousands of sensors.
+            var list = nodes.ToList(); var links = new List<MeshLink>();
+            for (int i = 0; i < list.Count; i++)
+            {
+                AddLink(links, list[i], list[(i + 1) % list.Count]);
+                if (list.Count > 3) AddLink(links, list[i], list[(i + 2) % list.Count]);
+            }
+            return links;
+        }
+
+        private static void AddLink(List<MeshLink> links, MeshNode a, MeshNode b)
+        {
+            if (a.Id == b.Id || links.Any(link => (link.From == a.Id && link.To == b.Id) || (link.From == b.Id && link.To == a.Id))) return;
+            double dx = a.X - b.X, dy = a.Y - b.Y;
+            links.Add(new MeshLink { From = a.Id, To = b.Id, Weight = Math.Round(Math.Sqrt(dx * dx + dy * dy), 2) });
+        }
+
         public static List<MeshLink> MinimumSpanningTree(IEnumerable<MeshNode> nodes)
         {
-            var list = nodes.ToList();
-            var links = new List<MeshLink>();
-            for (int i = 0; i < list.Count; i++) for (int j = i + 1; j < list.Count; j++)
-            {
-                double dx = list[i].X - list[j].X, dy = list[i].Y - list[j].Y;
-                links.Add(new MeshLink { From = list[i].Id, To = list[j].Id, Weight = Math.Round(Math.Sqrt(dx * dx + dy * dy), 2) });
-            }
+            var list = nodes.ToList(); var links = BuildCompleteGraph(list);
             links = links.OrderBy(l => l.Weight).ToList();
             var parent = list.ToDictionary(n => n.Id, n => n.Id);
             foreach (var link in links)

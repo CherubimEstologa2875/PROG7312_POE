@@ -21,6 +21,9 @@ public sealed class TelemetryStore
     // O(1) latest-state lookup for registered/live devices.
     private readonly Dictionary<string, TelemetryReading> latestByDevice =
         new(StringComparer.OrdinalIgnoreCase);
+    // Per-device AVL indexes support O(log n + k) historical range queries.
+    private readonly Dictionary<string, TelemetryAvlTree> historyByDevice =
+        new(StringComparer.OrdinalIgnoreCase);
     // Timestamp index for efficient chronological timeline rendering.
     private readonly SortedDictionary<DateTimeOffset, List<TelemetryReading>> logsByTimestamp = new();
     // De-duplicates repeated active alert/disconnect states.
@@ -28,7 +31,8 @@ public sealed class TelemetryStore
 
     // These collections model different access patterns: FIFO ingestion,
     // priority handling for critical readings, constant-time latest-state
-    // lookup, chronological indexing, and unique alert membership. The
+    // lookup, chronological indexing, and unique alert/disconnect membership.
+    // HashSet is not used to represent categories or dates. The
     // collection choice is therefore part of the behaviour, not only an
     // implementation detail (YouTube, [s.a.]-b; YouTube, [s.a.]-d).
     // Sources: https://youtu.be/R94JHIXdTk0; https://youtu.be/ySd_-h_Dapc
@@ -105,9 +109,38 @@ public sealed class TelemetryStore
         }
     }
 
+    // Public key-value view used by the dashboard's direct device lookup.
+    public Dictionary<string, DeviceState> ReadDeviceDictionary()
+    {
+        return ReadDeviceStates().ToDictionary(state => state.DeviceId, StringComparer.OrdinalIgnoreCase);
+    }
+
+    public TimelineSummary ReadTimelineSummary()
+    {
+        lock (gate)
+        {
+            var ordered = logsByTimestamp.SelectMany(pair => pair.Value).ToArray();
+            return new TimelineSummary
+            {
+                ReadingCount = ordered.Length,
+                FirstTimestamp = ordered.Length == 0 ? "" : ordered[0].Timestamp,
+                LastTimestamp = ordered.Length == 0 ? "" : ordered[ordered.Length - 1].Timestamp
+            };
+        }
+    }
+
     public TelemetryReading[] ReadTimeline()
     {
         lock (gate) return logsByTimestamp.SelectMany(pair => pair.Value).ToArray();
+    }
+
+    public TelemetryReading[] ReadRange(string sensorId, DateTimeOffset from, DateTimeOffset to)
+    {
+        lock (gate)
+        {
+            if (!historyByDevice.TryGetValue(sensorId, out var tree)) return Array.Empty<TelemetryReading>();
+            return tree.Range(from, to).OrderBy(reading => reading.Timestamp, StringComparer.Ordinal).ToArray();
+        }
     }
 
     public TelemetryReading Add(
@@ -184,6 +217,7 @@ public sealed class TelemetryStore
             }
 
             readings = next;
+            RebuildHistoryIndex();
             EnqueueForProcessing(reading);
             ProcessIncomingQueues();
             TrimTimelineToRetention();
@@ -194,6 +228,7 @@ public sealed class TelemetryStore
 
     private void RebuildDeviceIndex()
     {
+        RebuildHistoryIndex();
         foreach (var reading in readings)
         {
             latestByDevice[reading.SensorId] = reading;
@@ -201,6 +236,19 @@ public sealed class TelemetryStore
             {
                 if (!logsByTimestamp.TryGetValue(timestamp, out var bucket)) logsByTimestamp[timestamp] = bucket = new List<TelemetryReading>();
                 bucket.Add(reading);
+            }
+        }
+    }
+
+    private void RebuildHistoryIndex()
+    {
+        historyByDevice.Clear();
+        foreach (var reading in readings)
+        {
+            if (DateTimeOffset.TryParse(reading.Timestamp, out var timestamp))
+            {
+                if (!historyByDevice.TryGetValue(reading.SensorId, out var tree)) historyByDevice[reading.SensorId] = tree = new TelemetryAvlTree();
+                tree.Add(timestamp, reading);
             }
         }
     }
