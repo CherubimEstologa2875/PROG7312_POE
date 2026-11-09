@@ -13,7 +13,7 @@ namespace ST10443277_PROG7312
 
         private void OpenTelemetry_Click(object sender, RoutedEventArgs e)
         {
-            LandingView.Visibility = GatewayHeader.Visibility = GatewayFooter.Visibility = CommandView.Visibility = Visibility.Collapsed;
+            LandingView.Visibility = GatewayHeader.Visibility = GatewayFooter.Visibility = CommandView.Visibility = MeshView.Visibility = Visibility.Collapsed;
             TelemetryView.Visibility = Visibility.Visible;
             PageContent.Margin = new Thickness(0);
             PageContent.MaxWidth = double.PositiveInfinity;
@@ -25,7 +25,7 @@ namespace ST10443277_PROG7312
 
         private void OpenCommands_Click(object sender, RoutedEventArgs e)
         {
-            LandingView.Visibility = GatewayHeader.Visibility = GatewayFooter.Visibility = TelemetryView.Visibility = Visibility.Collapsed;
+            LandingView.Visibility = GatewayHeader.Visibility = GatewayFooter.Visibility = TelemetryView.Visibility = MeshView.Visibility = Visibility.Collapsed;
             CommandView.Visibility = Visibility.Visible;
             PageContent.Margin = new Thickness(0);
             PageContent.MaxWidth = double.PositiveInfinity;
@@ -35,10 +35,23 @@ namespace ST10443277_PROG7312
             CommandView.BackButton.Focus();
         }
 
+        private void OpenMesh_Click(object sender, RoutedEventArgs e)
+        {
+            LandingView.Visibility = GatewayHeader.Visibility = GatewayFooter.Visibility = TelemetryView.Visibility = CommandView.Visibility = Visibility.Collapsed;
+            MeshView.Visibility = Visibility.Visible;
+            PageContent.Margin = new Thickness(0);
+            PageContent.MaxWidth = double.PositiveInfinity;
+            Background = new SolidColorBrush(Color.FromRgb(244, 247, 250));
+            Title = "Smart-X | Mesh Routing";
+            PageScroll.ScrollToTop();
+            MeshView.BackButton.Focus();
+        }
+
         private void BackToGateway_Click(object sender, EventArgs e)
         {
             TelemetryView.Visibility = Visibility.Collapsed;
             CommandView.Visibility = Visibility.Collapsed;
+            MeshView.Visibility = Visibility.Collapsed;
             LandingView.Visibility = GatewayHeader.Visibility = GatewayFooter.Visibility = Visibility.Visible;
             PageContent.Margin = new Thickness(32, 32, 32, 28);
             PageContent.MaxWidth = 1200;

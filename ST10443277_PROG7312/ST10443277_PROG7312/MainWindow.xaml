@@ -455,10 +455,10 @@
                                 <!-- Disabled placeholder button because mesh routing is reserved for the final PoE.-->
                                 <Button x:Name="MeshRoutingButton"
                                     Grid.Row="1"
-                                    Content="Available in final PoE"
+                                    Content="Open _mesh routing  >"
                                     Style="{StaticResource ActionButton}"
-                                    IsEnabled="False"
-                                    AutomationProperties.Name="Network Topology and Mesh Routing, available in the final PoE" />
+                                    Click="OpenMesh_Click"
+                                    AutomationProperties.Name="Open Network Topology and Mesh Routing" />
 
                             </Grid>
                         </Border>
@@ -495,6 +495,11 @@
 
                 <local:CommandStream
                 x:Name="CommandView"
+                Visibility="Collapsed"
+                BackRequested="BackToGateway_Click" />
+
+                <local:MeshRouting
+                x:Name="MeshView"
                 Visibility="Collapsed"
                 BackRequested="BackToGateway_Click" />
 
