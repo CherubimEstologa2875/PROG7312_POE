@@ -70,7 +70,14 @@ namespace SmartX.Contracts
     {
         public static List<string> BreadthFirst(IEnumerable<MeshNode> nodes, IEnumerable<MeshLink> links, string start)
         {
-            var known = new HashSet<string>(); foreach (var node in nodes) known.Add(node.Id);
+            return BreadthFirst(nodes, links, start, node => true);
+        }
+
+        // BFS over the active subgraph. Down sensors remain visible in the
+        // physical graph, but are not treated as connected hops.
+        public static List<string> BreadthFirst(IEnumerable<MeshNode> nodes, IEnumerable<MeshLink> links, string start, Func<MeshNode, bool> canTraverse)
+        {
+            var known = new HashSet<string>(nodes.Where(canTraverse).Select(node => node.Id), StringComparer.OrdinalIgnoreCase);
             var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase); var queue = new Queue<string>(); var result = new List<string>();
             if (!known.Contains(start)) return result;
             queue.Enqueue(start); visited.Add(start);
@@ -82,6 +89,24 @@ namespace SmartX.Contracts
                     string next = link.From.Equals(current, StringComparison.OrdinalIgnoreCase) ? link.To : link.To.Equals(current, StringComparison.OrdinalIgnoreCase) ? link.From : "";
                     if (next.Length > 0 && visited.Add(next)) queue.Enqueue(next);
                 }
+            }
+            return result;
+        }
+
+        public static Dictionary<string, List<string>> FindRecoveryHops(IEnumerable<MeshNode> nodes, IEnumerable<MeshLink> links)
+        {
+            var nodeMap = nodes.ToDictionary(node => node.Id, StringComparer.OrdinalIgnoreCase);
+            var result = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var down in nodeMap.Values.Where(node => !node.Gateway && !node.Online))
+            {
+                result[down.Id] = links
+                    .Where(link => link.From.Equals(down.Id, StringComparison.OrdinalIgnoreCase) || link.To.Equals(down.Id, StringComparison.OrdinalIgnoreCase))
+                    .Select(link => link.From.Equals(down.Id, StringComparison.OrdinalIgnoreCase) ? link.To : link.From)
+                    .Where(nodeMap.ContainsKey)
+                    .Where(id => nodeMap[id].Online || nodeMap[id].Gateway)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
             }
             return result;
         }
