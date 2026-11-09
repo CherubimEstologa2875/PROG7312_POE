@@ -48,6 +48,13 @@ namespace ST10443277_PROG7312
                 return Serializer().Deserialize<List<DeviceState>>(await ReadResponseAsync(response).ConfigureAwait(false));
         }
 
+        public async Task<MeshTopology> GetMeshAsync(string sensorId = null)
+        {
+            string path = "api/mesh" + (string.IsNullOrWhiteSpace(sensorId) ? "" : "?sensorId=" + Uri.EscapeDataString(sensorId));
+            using (var response = await Http.GetAsync(new Uri(baseAddress, path)).ConfigureAwait(false))
+                return Serializer().Deserialize<MeshTopology>(await ReadResponseAsync(response).ConfigureAwait(false));
+        }
+
         public async Task<DeviceCommand> SubmitCommandAsync(SubmitCommandRequest command)
         {
             using (var content = new StringContent(Serializer().Serialize(command), Encoding.UTF8, "application/json"))
