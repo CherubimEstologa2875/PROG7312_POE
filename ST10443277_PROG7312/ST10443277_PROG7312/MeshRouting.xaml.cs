@@ -1,6 +1,7 @@
 using SmartX.Contracts;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -17,24 +18,34 @@ namespace ST10443277_PROG7312
         private TelemetryApiClient api;
         private readonly List<TelemetryReading> history = new List<TelemetryReading>();
         public MeshRouting() { InitializeComponent(); Loaded += async (s, e) => await ReloadAsync(); }
-        private async void Refresh_Click(object sender, RoutedEventArgs e) { await ReloadAsync(); }
-        private async void Sensor_Changed(object sender, SelectionChangedEventArgs e) { if (IsLoaded) await ReloadAsync(); }
-        private async Task ReloadAsync()
+        private async void Refresh_Click(object sender, RoutedEventArgs e) { await ReloadAsync(SensorSelector.Text); }
+        private async void Trace_Click(object sender, RoutedEventArgs e) { await ReloadAsync(SensorSelector.Text); }
+        private async void Sensor_Changed(object sender, SelectionChangedEventArgs e) { if (IsLoaded && SensorSelector.IsDropDownOpen) await ReloadAsync(SensorSelector.SelectedItem as string); }
+        private async Task ReloadAsync(string requestedSensor = null)
         {
             try
             {
                 if (api == null) api = new TelemetryApiClient();
-                string selected = SensorSelector.SelectedItem as string;
+                string selected = string.IsNullOrWhiteSpace(requestedSensor) ? null : requestedSensor.Trim();
                 topology = await api.GetMeshAsync(selected);
                 history.Clear();
-                if (!string.IsNullOrWhiteSpace(selected))
-                    history.AddRange(await api.GetTelemetryRangeAsync(selected, DateTimeOffset.UtcNow.AddHours(-24), DateTimeOffset.UtcNow));
-                SensorSelector.ItemsSource = topology.Nodes.Where(n => !n.Gateway).Select(n => n.Id).ToList(); SensorSelector.SelectedItem = selected;
+                string resolvedSensor = topology.Route.Count == 0 ? null : topology.Route[0].NodeId;
+                if (!string.IsNullOrWhiteSpace(resolvedSensor))
+                    history.AddRange(await api.GetTelemetryRangeAsync(resolvedSensor, DateTimeOffset.UtcNow.AddHours(-24), DateTimeOffset.UtcNow));
+                string[] sensorIds = topology.Nodes.Where(n => !n.Gateway).Select(n => n.Id).ToArray();
+                SensorSelector.ItemsSource = sensorIds;
+                SensorSelector.Text = resolvedSensor ?? selected ?? "";
                 SummaryText.Text = topology.Nodes.Count + " nodes • graph " + topology.Links.Count + " links • MST " + topology.SpanningTreeLinks.Count + " links • BFS reached " + topology.ReachableFromGateway.Count + " • down " + topology.DownNodes.Count;
-                HistoryList.ItemsSource = history; HistoryStatus.Text = history.Count + " readings returned by the AVL tree range query (last 24 hours) for " + (selected ?? "the selected sensor") + ".";
+                HistoryList.ItemsSource = history.OrderByDescending(r => ParseTimestamp(r.Timestamp)).ToList();
+                HistoryStatus.Text = history.Count + " readings returned by the AVL tree range query (last 24 hours) for " + (resolvedSensor ?? selected ?? "the selected sensor") + ".";
                 RouteList.ItemsSource = topology.Route.Select(r => r.Label + "  (cost " + r.CumulativeCost.ToString("0.0") + ")"); RouteText.Text = topology.Route.Count == 0 ? "Select a sensor to trace its route." : "Shortest path to Central Gateway"; DrawNetwork();
             }
             catch (Exception error) { SummaryText.Text = "API unavailable: " + error.Message; }
+        }
+        private static DateTimeOffset ParseTimestamp(string value)
+        {
+            DateTimeOffset parsed;
+            return DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out parsed) ? parsed : DateTimeOffset.MinValue;
         }
         private void DrawNetwork()
         {
