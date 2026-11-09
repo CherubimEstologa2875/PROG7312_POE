@@ -212,6 +212,10 @@
                 DockPanel.Dock="Left"
                 Content="←  Gateway"
                 Style="{StaticResource Action}"
+                Width="112"
+                Height="40"
+                Padding="16,10"
+                HorizontalContentAlignment="Center"
                 Click="Back_Click"
                 AutomationProperties.Name="Back to gateway"/>
 
