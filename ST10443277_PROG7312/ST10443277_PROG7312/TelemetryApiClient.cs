@@ -36,6 +36,18 @@ namespace ST10443277_PROG7312
             }
         }
 
+        public async Task<List<TelemetryReading>> GetTelemetryRangeAsync(string sensorId, DateTimeOffset from, DateTimeOffset to)
+        {
+            string path = "api/telemetry/range?sensorId=" + Uri.EscapeDataString(sensorId) +
+                "&from=" + Uri.EscapeDataString(from.ToString("O")) +
+                "&to=" + Uri.EscapeDataString(to.ToString("O"));
+            using (var response = await Http.GetAsync(new Uri(baseAddress, path)).ConfigureAwait(false))
+            {
+                string json = await ReadResponseAsync(response).ConfigureAwait(false);
+                return Serializer().Deserialize<List<TelemetryReading>>(json) ?? new List<TelemetryReading>();
+            }
+        }
+
         public async Task<CommandHistory> GetCommandsAsync()
         {
             using (var response = await Http.GetAsync(new Uri(baseAddress, "api/commands")).ConfigureAwait(false))
@@ -46,6 +58,18 @@ namespace ST10443277_PROG7312
         {
             using (var response = await Http.GetAsync(new Uri(baseAddress, "api/device-states")).ConfigureAwait(false))
                 return Serializer().Deserialize<List<DeviceState>>(await ReadResponseAsync(response).ConfigureAwait(false));
+        }
+
+        public async Task<Dictionary<string, DeviceState>> GetDeviceDictionaryAsync()
+        {
+            using (var response = await Http.GetAsync(new Uri(baseAddress, "api/device-dictionary")).ConfigureAwait(false))
+                return Serializer().Deserialize<Dictionary<string, DeviceState>>(await ReadResponseAsync(response).ConfigureAwait(false));
+        }
+
+        public async Task<TimelineSummary> GetTimelineSummaryAsync()
+        {
+            using (var response = await Http.GetAsync(new Uri(baseAddress, "api/telemetry/timeline/summary")).ConfigureAwait(false))
+                return Serializer().Deserialize<TimelineSummary>(await ReadResponseAsync(response).ConfigureAwait(false));
         }
 
         public async Task<MeshTopology> GetMeshAsync(string sensorId = null)

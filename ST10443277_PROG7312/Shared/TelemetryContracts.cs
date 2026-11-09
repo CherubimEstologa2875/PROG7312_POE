@@ -22,6 +22,13 @@ namespace SmartX.Contracts
     {
         public string Id { get; set; } = "";
     }
+
+    public class TimelineSummary
+    {
+        public int ReadingCount { get; set; }
+        public string FirstTimestamp { get; set; } = "";
+        public string LastTimestamp { get; set; } = "";
+    }
 }
 
 // REFERENCE LIST 
