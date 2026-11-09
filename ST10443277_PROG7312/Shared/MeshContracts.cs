@@ -38,7 +38,11 @@ namespace SmartX.Contracts
         public List<MeshLink> SpanningTreeLinks { get; set; } = new List<MeshLink>();
         public List<string> ReachableFromGateway { get; set; } = new List<string>();
         public List<string> DownNodes { get; set; } = new List<string>();
+        // Down sensors remain visible in the physical graph, but routing uses
+        // the online subgraph. These are the next-hop recovery candidates.
+        public Dictionary<string, List<string>> RecoveryHops { get; set; } = new Dictionary<string, List<string>>();
         public List<MeshRouteHop> Route { get; set; } = new List<MeshRouteHop>();
+        public string RouteStatus { get; set; } = "No sensor selected.";
         public double SpanningTreeCost { get; set; }
     }
 
