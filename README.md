@@ -3,12 +3,12 @@
 # YOUTUBE DEMO LINK
 https://youtu.be/EZ_6AoL5jGI 
 
-WPF gateway and telemetry dashboard for ST10443277 PROG7312 Part 1 project, connected to an ASP.NET Core Web API.
+Final Smart-X IoT mesh application for ST10443277 PROG7312. The solution combines the WPF gateway, ASP.NET Core API, telemetry and command processing, historical range queries, and mesh routing.
 
 ## Prerequisites
 
 - Windows: the client is a WPF desktop application targeting .NET Framework 4.7.2.
-- Visual Studio 2022 with the .NET desktop development and ASP.NET and web development workloads. Use an installation that supports the project's .NET 9 SDK.
+- Visual Studio 2022 (17.14 or later) with the .NET desktop development and ASP.NET and web development workloads.
 - .NET Framework 4.7.2 targeting pack/developer pack for compiling the client. In Visual Studio Installer, select the corresponding individual components if they are missing.
 - .NET 9 SDK for compiling and running the backend, which targets `net9.0`. A runtime-only installation cannot compile the API.
 - Internet access for the initial installation and dependency restore.
@@ -153,17 +153,17 @@ Directories are created automatically; data files are written as records are sav
 After a successful Debug build, run the included feature suite from the repository root using Windows PowerShell 5.1 (`powershell.exe`):
 
 ```powershell
-powershell.exe -NoProfile -STA -File .\tests\FeatureIntegration.Tests.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -STA -File .\tests\FeatureIntegration.Tests.ps1
 ```
 
-This suite also runs `ApiIntegration.Tests.ps1`, starts its own backend on port `5089`, and uses isolated storage under the API's `bin\integration` directory. Ensure that port is free. To select another test port, append `-Port 5091`. Windows PowerShell is required here because the tests load the .NET Framework WPF client assemblies.
+This suite runs `ApiIntegration.Tests.ps1` and `Part3Algorithms.Tests.ps1`, starts its own backend on port `5089`, and uses isolated storage under the API's `bin\integration` directory. Ensure that port is free. To select another test port, append `-Port 5091`. Windows PowerShell is required here because the tests load the .NET Framework WPF client assemblies.
 
 ## Troubleshooting
 
 | Problem | What to check |
 | --- | --- |
 | `dotnet` or `MSBuild` is not recognised | Install the prerequisites and reopen Developer PowerShell for VS 2022. |
-| The SDK cannot target .NET 9 | Confirm `dotnet --list-sdks` includes .NET 9 and use a Visual Studio installation that supports that SDK. |
+| Visual Studio reports that it cannot target .NET 10 | This repository targets .NET 9 for Visual Studio 2022 compatibility. Install the .NET 9 SDK, reload the solution, and rebuild. |
 | .NET Framework 4.7.2 reference assemblies are missing | Install the 4.7.2 targeting/developer pack through Visual Studio Installer, then rebuild. |
 | The client cannot connect or displays cached data | Keep the API running, check `/health`, and confirm that `SMARTX_API_URL` or `TelemetryApiBaseUrl` matches the API's listening address. |
 | Port 5080 is already in use | Stop the conflicting server you started, or choose another port in `--urls` and use the same address for the client. |
@@ -173,7 +173,7 @@ This suite also runs `ApiIntegration.Tests.ps1`, starts its own backend on port 
 
 ### Research engagement strategy
 
-The implemented strategy is interactive telemetry visualisation with proactive anomaly alerts, refreshed every 15 seconds. The supplied `ST10443277_PROG7312_POE PT 1_RESEARCH.docx` selects this combined strategy, and its core features and supporting dashboard diagram match the implementation. The application uses near-real-time polling, a fixed five-minute disconnect timeout, and sensor/location/category/time filters; immediate push updates, per-device reporting intervals and a dedicated alert-status filter are not implemented. See [the implementation guide](TASK2_IMPLEMENTATION_AUDIT.md) for the research comparison.
+The telemetry dashboard combines interactive visualisation with proactive anomaly alerts and refreshes every 15 seconds. It uses a fixed five-minute disconnect timeout and sensor, location, category, and time filters. Updates are polled; immediate push updates, per-device reporting intervals, and a dedicated alert-status filter are not implemented.
 
 - Threshold guides show the alert boundary on numeric charts; actuator charts use Off/On steps.
 - Hover over the chart to inspect the nearest reading's value and timestamp.
@@ -184,7 +184,7 @@ The implemented strategy is interactive telemetry visualisation with proactive a
 
 The command screen polls its bounded API queue and indexed device-state feed every five seconds. It supports device/location search, category filtering and active-alert-only filtering. Commands are persisted in `App_Data/commands.json`, remain queued until acknowledged, and are also retained as history. Boolean reports in telemetry remain telemetry; device actions use the separate command endpoint.
 
-The real-time API processing path uses a FIFO `Queue<T>` for ordinary telemetry, a priority queue for critical power/moisture alerts, a `Stack<T>` for manual override undo, a device dictionary for O(1) live-state lookup, a `SortedDictionary` for timestamp-indexed timeline logs, and a `HashSet` for unique active alert/disconnect states.
+The real-time API processing path uses a FIFO `Queue<T>` for ordinary telemetry, a priority queue for critical power/moisture alerts, a `Stack<T>` for manual override undo, a device dictionary for O(1) live-state lookup, a `SortedDictionary` for timestamp-indexed timeline logs, and a `HashSet` for unique active alert/disconnect states. In the Commands screen the operator can now see actual timestamp-ordered reading rows, the total time range, and the count of unique active alert/disconnect states. The device dictionary remains directly usable through the device-ID lookup panel. HashSet membership represents active states keyed by type and device, not unique categories or dates; rebuilding it from current device states removes resolved/stale entries.
 
 ### Historical telemetry tree index
 
@@ -310,8 +310,8 @@ The current local JSON design is appropriate for a demonstration and assessment 
 
 | Recommendation | Benefit | .NET compatibility |
 | --- | --- | --- |
-| PostgreSQL with TimescaleDB | Durable multi-user telemetry storage, time-window compression, and scalable timestamp queries | Supported through Npgsql and Entity Framework Core |
-| Google Cloud IoT-style architecture using Pub/Sub, Cloud Run, and Cloud SQL | Distributed ingestion, independently scalable API workers, and managed database hosting | .NET 9 services can run in containers on Cloud Run and consume Google client libraries or REST APIs |
+| PostgreSQL | Durable multi-user telemetry storage, concurrent access, and indexed timestamp queries | .NET can connect through the Npgsql provider; check provider compatibility for the selected EF Core version |
+| Google Cloud IoT-style architecture using Pub/Sub, Cloud Run, and Cloud SQL | Distributed ingestion, independently scalable API workers, and managed database hosting | .NET 10 services can run in containers on Cloud Run and consume Google client libraries or REST APIs |
 | GitHub Actions | Automated build, API tests, WPF build checks, Docker image publishing, and release traceability | Directly runs `dotnet restore`, `dotnet build`, PowerShell tests, and Docker workflows |
 | MQTT broker or Home Assistant integration | Standardised device messaging and interoperability with existing home/industrial automation devices | .NET MQTT client libraries can feed the existing telemetry endpoints |
 | OpenTelemetry with Prometheus and Grafana | Operational metrics for API latency, queue depth, graph calculation time, and failed routes | Works with ASP.NET Core middleware and standard .NET instrumentation |
@@ -323,6 +323,15 @@ The recommended migration order is database persistence first, then CI/CD, then 
 The command dashboard also posts search/filter activity to the predictive action engine. The engine retains bounded query history, counts transitions between searches, combines those patterns with live threshold alerts, and presents confidence-scored Suggested Actions / Automated Insights. Available endpoints are `POST /api/insights/search` and `GET /api/insights`.
 
 ## Source layout
+
+## Part 3 submission files
+
+- `output/pdf/PROG7312_Part3_Final_POE_Report.pdf`: implementation report, completion report, feedback mapping, and technology recommendations.
+- `PART3_UPDATE_LOG.md`: source and test update record, including the supplied Part 2 feedback and how it was addressed.
+- This repository: complete WPF client, .NET 9 API, shared contracts, Docker files, and integration/algorithm test suites.
+- Demo: the YouTube link at the top of this README.
+
+Before submission, build and run the suite using the .NET 9 SDK, then commit and push the final changes to the configured GitHub repository. The target framework was changed to .NET 9 because the installed Visual Studio version cannot target .NET 10; confirm this change is acceptable against the course rubric before submission.
 
 The paths below are relative to the outer `ST10443277_PROG7312` directory, except `tests`, which is at the repository root.
 
@@ -347,7 +356,8 @@ The paths below are relative to the outer `ST10443277_PROG7312` directory, excep
 - `ST10443277_PROG7312/SensorProfilePanel.xaml` and code-behind: selected sensor files, transfers and typed reading submission.
 - `ST10443277_PROG7312/MainWindow.xaml` and code-behind: gateway and navigation.
 - `ST10443277_PROG7312/CommandStream.xaml` and code-behind: asynchronous command submission, polling and history.
-- `tests/ApiIntegration.Tests.ps1`: API and WPF integration verification.
-- `tests/FeatureIntegration.Tests.ps1`: attachments, engagement and advanced C# concept verification.
+- `tests/ApiIntegration.Tests.ps1`: API and WPF integration verification, including AVL range and mesh topology endpoints, visible sorted timeline, device dictionary lookup data, and unique active-state set.
+- `tests/Part3Algorithms.Tests.ps1`: direct AVL balance/range, mesh traversal, recovery-hop, MST and route checks.
+- `tests/FeatureIntegration.Tests.ps1`: runs the API integration and Part 3 algorithm checks, then verifies attachments, engagement and advanced C# concepts.
 
-The multipart implementation follows Microsoft's [ASP.NET Core file upload guidance](https://learn.microsoft.com/en-us/aspnet/core/mvc/models/file-uploads?view=aspnetcore-9.0), using streaming to avoid buffering whole uploads in application memory.
+The multipart implementation follows Microsoft's [ASP.NET Core file upload guidance](https://learn.microsoft.com/en-us/aspnet/core/mvc/models/file-uploads?view=aspnetcore-10.0), using streaming to avoid buffering whole uploads in application memory.
