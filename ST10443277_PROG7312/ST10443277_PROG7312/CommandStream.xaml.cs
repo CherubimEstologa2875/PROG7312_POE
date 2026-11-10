@@ -18,6 +18,7 @@ namespace ST10443277_PROG7312
         private readonly ObservableCollection<CommandRow> rows = new ObservableCollection<CommandRow>();
         private readonly List<DeviceRow> devices = new List<DeviceRow>();
         private readonly ObservableCollection<InsightRow> insights = new ObservableCollection<InsightRow>();
+        private readonly ObservableCollection<TimelineRow> timelineRows = new ObservableCollection<TimelineRow>();
         private Dictionary<string, DeviceState> deviceDictionary = new Dictionary<string, DeviceState>(StringComparer.OrdinalIgnoreCase);
         private TextBox dictionaryInput;
         private TextBlock dictionaryResult;
@@ -35,6 +36,7 @@ namespace ST10443277_PROG7312
             HistoryList.ItemsSource = rows;
             DeviceList.ItemsSource = devices;
             InsightsList.ItemsSource = insights;
+            TimelineList.ItemsSource = timelineRows;
             AddDataStructureEvidencePanel();
             CommandInput.SelectedIndex = 0;
             CategoryFilter.SelectedIndex = 0;
@@ -54,12 +56,16 @@ namespace ST10443277_PROG7312
                 var statesTask = api.GetDeviceStatesAsync();
                 var dictionaryTask = api.GetDeviceDictionaryAsync();
                 var timelineTask = api.GetTimelineSummaryAsync();
+                var timelineEntriesTask = api.GetTimelineAsync(12);
+                var activeErrorsTask = api.GetActiveErrorStatesAsync();
                 var insightsTask = api.GetInsightsAsync();
-                await Task.WhenAll(historyTask, statesTask, dictionaryTask, timelineTask, insightsTask);
+                await Task.WhenAll(historyTask, statesTask, dictionaryTask, timelineTask, timelineEntriesTask, activeErrorsTask, insightsTask);
                 var history = await historyTask;
                 var states = await statesTask;
                 deviceDictionary = await dictionaryTask;
                 var timeline = await timelineTask;
+                var timelineEntries = await timelineEntriesTask;
+                var activeErrors = await activeErrorsTask;
                 var insightResponse = await insightsTask;
                 rows.Clear();
                 foreach (var command in history.Items) rows.Add(new CommandRow(command));
@@ -68,7 +74,14 @@ namespace ST10443277_PROG7312
                 ApplyDeviceFilter();
                 insights.Clear();
                 foreach (var suggestion in insightResponse.Suggestions) insights.Add(new InsightRow(suggestion));
+                timelineRows.Clear();
+                foreach (var reading in timelineEntries) timelineRows.Add(new TimelineRow(reading));
                 PatternSummaryText.Text = insightResponse.PatternSummary;
+                TimelineStatusText.Text = timelineEntries.Count == 0
+                    ? "No readings in the sorted timeline yet."
+                    : "Showing the newest " + timelineEntries.Count + " of " + timeline.ReadingCount + " readings, in chronological order. " +
+                      "Range: " + FormatTimestamp(timelineEntries[0].Timestamp) + " to " + FormatTimestamp(timelineEntries[timelineEntries.Count - 1].Timestamp) + ".";
+                UniqueErrorStateText.Text = "HashSet: " + activeErrors.Count + " unique active alert or disconnected-device state(s).";
                 if (dictionaryResult != null)
                     dictionaryResult.Text = "Dictionary: " + deviceDictionary.Count + " device keys available. " +
                         "Sorted timeline: " + timeline.ReadingCount + " readings" +
@@ -124,7 +137,7 @@ namespace ST10443277_PROG7312
         {
             var root = Content as Grid;
             if (root == null) return;
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Insert(3, new RowDefinition { Height = GridLength.Auto });
             foreach (UIElement child in root.Children)
             {
                 if (Grid.GetRow(child) >= 3) Grid.SetRow(child, Grid.GetRow(child) + 1);
@@ -229,6 +242,29 @@ namespace ST10443277_PROG7312
             public string Title { get { return insight.Title; } }
             public string Explanation { get { return insight.Explanation + (string.IsNullOrWhiteSpace(insight.SuggestedCommand) ? "" : " Suggested command: " + insight.SuggestedCommand + "."); } }
             public string ConfidenceText { get { return insight.Confidence + "% confidence"; } }
+        }
+
+        public sealed class TimelineRow
+        {
+            public TimelineRow(TelemetryReading reading)
+            {
+                DateTimeOffset timestamp;
+                Timestamp = DateTimeOffset.TryParse(reading.Timestamp, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out timestamp)
+                    ? timestamp
+                    : DateTimeOffset.MinValue;
+                TimeText = Timestamp == DateTimeOffset.MinValue
+                    ? reading.Timestamp
+                    : Timestamp.ToLocalTime().ToString("dd MMM HH:mm:ss", CultureInfo.InvariantCulture);
+                DeviceId = reading.SensorId;
+                Category = reading.Category;
+                ValueText = reading.Value.HasValue ? reading.Value.Value.ToString("0.##", CultureInfo.CurrentCulture) : "-";
+            }
+
+            public DateTimeOffset Timestamp { get; private set; }
+            public string TimeText { get; private set; }
+            public string DeviceId { get; private set; }
+            public string Category { get; private set; }
+            public string ValueText { get; private set; }
         }
     }
 }

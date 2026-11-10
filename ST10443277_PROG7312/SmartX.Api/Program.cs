@@ -76,6 +76,7 @@ app.MapGet("/health", () => Results.Ok(new { Status = "Healthy" }));
 app.MapGet("/api/commands", (CommandStore store) => Results.Ok(store.Read()));
 app.MapGet("/api/device-states", (TelemetryStore store) => Results.Ok(store.ReadDeviceStates()));
 app.MapGet("/api/device-dictionary", (TelemetryStore store) => Results.Ok(store.ReadDeviceDictionary()));
+app.MapGet("/api/device-alerts", (TelemetryStore store) => Results.Ok(store.ReadActiveErrorStates()));
 app.MapGet("/api/mesh", (string? sensorId, MeshStore store) => Results.Ok(store.Read(sensorId)));
 
 app.MapPost("/api/insights/search", (SearchActivity activity, PredictiveActionEngine engine) =>
@@ -114,7 +115,13 @@ app.MapPost("/api/commands/undo", (CommandStore store, PredictiveActionEngine en
     return command is null ? Results.NoContent() : Results.Created("/api/commands", command);
 });
 
-app.MapGet("/api/telemetry/timeline", (TelemetryStore store) => Results.Ok(store.ReadTimeline()));
+app.MapGet("/api/telemetry/timeline", (int? limit, TelemetryStore store) =>
+{
+    if (limit.HasValue && (limit.Value < 1 || limit.Value > TelemetryStore.Capacity))
+        return Results.BadRequest(new { Error = "limit must be between 1 and 10000." });
+    var timeline = store.ReadTimeline();
+    return Results.Ok(limit.HasValue ? timeline.TakeLast(limit.Value).ToArray() : timeline);
+});
 app.MapGet("/api/telemetry/timeline/summary", (TelemetryStore store) => Results.Ok(store.ReadTimelineSummary()));
 
 app.MapGet("/api/sensors", (SensorRegistrationStore store) => Results.Ok(store.Read()));
