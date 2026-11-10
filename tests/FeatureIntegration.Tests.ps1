@@ -1,6 +1,7 @@
 param([int]$Port = 5089)
 # Run the original regression suite first, reusing its isolated HTTP/WPF helpers and storage.
 . (Join-Path $PSScriptRoot 'ApiIntegration.Tests.ps1') -Port $Port
+& (Join-Path $PSScriptRoot 'Part3Algorithms.Tests.ps1')
 $http = New-Object System.Net.Http.HttpClient
 $http.Timeout = [TimeSpan]::FromSeconds(10)
 $env:SMARTX_API_URL = $baseUri

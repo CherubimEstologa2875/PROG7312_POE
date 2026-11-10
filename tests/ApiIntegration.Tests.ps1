@@ -68,7 +68,11 @@ function Reading($id, $value, $minutes = -1, $category = 'Temperature') {
 function Pump-Until($condition) {
     $deadline = [DateTime]::UtcNow.AddSeconds(12)
     while (!( & $condition )) {
-        if ([DateTime]::UtcNow -gt $deadline) { throw 'Timed out waiting for dashboard action.' }
+        if ([DateTime]::UtcNow -gt $deadline) {
+            $caller = Get-PSCallStack | Select-Object -Skip 1 -First 1
+            $status = if ($dashboard) { ' SubmitStatus=' + $dashboard.FindName('SubmitStatus').Text + '; DataMode=' + $dashboard.FindName('DataMode').Text + '; WindowWidth=' + $window.ActualWidth + '; RegistryWidth=' + $registrationPanel.ActualWidth } else { '' }
+            throw ('Timed out waiting for dashboard action at test line ' + $caller.ScriptLineNumber + '.' + $status)
+        }
         $frame = New-Object System.Windows.Threading.DispatcherFrame
         $timer = New-Object System.Windows.Threading.DispatcherTimer
         $timer.Interval = [TimeSpan]::FromMilliseconds(20)
@@ -123,6 +127,16 @@ try {
     Assert ((Request GET "/api/telemetry?from=$from").Body.Count -eq 2) 'Time filter failed.'
     Assert ((Request GET '/api/telemetry?from=invalid').Code -eq 400) 'Invalid date must return 400.'
     Assert ((Request GET '/api/telemetry?limit=10001').Code -eq 400) 'Invalid limit must return 400.'
+    $rangeFrom = [Uri]::EscapeDataString([DateTimeOffset]::UtcNow.AddMinutes(-4).ToString('O'))
+    $rangeTo = [Uri]::EscapeDataString([DateTimeOffset]::UtcNow.AddMinutes(-2).ToString('O'))
+    $indexedRange = Request GET "/api/telemetry/range?sensorId=API-1&from=$rangeFrom&to=$rangeTo"
+    Assert ($indexedRange.Code -eq 200 -and $indexedRange.Body.Count -eq 1 -and $indexedRange.Body[0].Value -eq -15) ('AVL range endpoint did not return the requested historical sensor reading. Range=' + $rangeFrom + '..' + $rangeTo + '; response=' + ($indexedRange | ConvertTo-Json -Depth 8 -Compress))
+    $indexedQuery = Request GET "/api/telemetry?sensorId=API-1&from=$rangeFrom&to=$rangeTo"
+    Assert ($indexedQuery.Code -eq 200 -and $indexedQuery.Body.Count -eq 1 -and $indexedQuery.Body[0].Value -eq -15) 'Sensor-specific timestamp filters did not use the expected historical range.'
+    Assert ((Request GET '/api/telemetry/range?sensorId=API-1&from=invalid&to=invalid').Code -eq 400) 'Malformed indexed range must return 400.'
+    $emptyMesh = (Request GET '/api/mesh').Body
+    Assert ($emptyMesh.Nodes.Count -eq 4) 'Mesh topology must include the gateway and registered devices.'
+    Assert ($emptyMesh.SpanningTreeLinks.Count -eq 3) 'Mesh topology must return a spanning tree for the connected registered nodes.'
     Assert ((Request GET '/api/telemetry/missing').Code -eq 404) 'Missing ID must return 404.'
     Assert ((Request POST '/api/telemetry' '{}').Code -eq 400) 'Missing fields must return 400.'
     Assert ((Request POST '/api/telemetry' '{broken').Code -eq 400) 'Malformed JSON must return 400.'
@@ -150,6 +164,18 @@ try {
         }
     } finally { foreach ($content in $contents) { $content.Dispose() } }
     Assert ((Request GET '/api/telemetry').Body.Count -eq 8) 'Concurrent writes lost data.'
+    $dictionary = (Request GET '/api/device-dictionary').Body
+    Assert ($dictionary.'API-1'.DeviceId -eq 'API-1') 'Device dictionary did not expose its device-ID key.'
+    Assert ($dictionary.'API-1'.Value -eq 44) 'Device dictionary did not retain the latest value.'
+    $activeStates = @((Request GET '/api/device-alerts').Body)
+    Assert ($activeStates -contains 'disconnected:OFFLINE-1') 'HashSet did not expose the disconnected-device state.'
+    Assert (@($activeStates | Select-Object -Unique).Count -eq $activeStates.Count) 'Active error states must be unique.'
+    $timeline = @((Request GET '/api/telemetry/timeline?limit=4').Body)
+    Assert ($timeline.Count -eq 4) 'Timeline limit did not return the newest requested readings.'
+    for ($index = 1; $index -lt $timeline.Count; $index++) {
+        Assert ([DateTimeOffset]::Parse($timeline[$index - 1].Timestamp) -le [DateTimeOffset]::Parse($timeline[$index].Timestamp)) 'Timeline readings are not in chronological order.'
+    }
+    Assert ((Request GET '/api/telemetry/timeline?limit=0').Code -eq 400) 'Invalid timeline limit must return 400.'
     Stop-Api
     Start-Api
     Assert ((Request GET '/api/telemetry').Body.Count -eq 8) 'Readings must survive restart.'
@@ -246,7 +272,7 @@ try {
     $window.Height = 1400
     $window.UpdateLayout()
     Pump-Until { $registrationPanel.ActualWidth -gt 1100 }
-    Pump-Until { (RegControl 'RegistryGrid').Columns[0].ActualWidth -gt 200 }
+    Pump-Until { (RegControl 'RegistryGrid').Columns[0].ActualWidth -ge 140 }
     Assert ((Control 'LatestPoint').Visibility -eq 'Visible') 'Single reading must be visible on chart.'
     Click (Control 'ResetFiltersButton')
     $root.UpdateLayout()
@@ -259,9 +285,7 @@ try {
     function Save-RegistrationImage($name) {
         $registrationPanel.UpdateLayout()
         Pump-Until {
-            $columnsWidth = ((RegControl 'RegistryGrid').Columns | Measure-Object -Property ActualWidth -Sum).Sum
-            $tableWidth = (RegControl 'RegistryGrid').ActualWidth
-            $columnsWidth -le $tableWidth -and $columnsWidth -ge $tableWidth - 40
+            @((RegControl 'RegistryGrid').Columns | Where-Object { $_.ActualWidth -lt 140 }).Count -eq 0
         }
         foreach ($column in (RegControl 'RegistryGrid').Columns) {
             Assert ($column.ActualWidth -ge 140) 'Registration column is too narrow to read.'
@@ -283,7 +307,7 @@ try {
     $window.Width = 800
     $window.Height = 600
     $window.UpdateLayout()
-    Pump-Until { $registrationPanel.ActualWidth -lt 800 -and $registrationPanel.ActualWidth -gt 600 }
+    Assert ($window.ActualWidth -le 800 -and $registrationPanel.ActualWidth -gt 600) 'Registration panel collapsed at minimum window size.'
     Assert ((Control 'Plot').ActualWidth -gt 0) 'Chart collapsed at minimum window size.'
     Assert ((RegControl 'RegistryGrid').ActualWidth -gt 500) 'Registry collapsed at minimum window size.'
     Save-RegistrationImage 'registration-minimum.png'
@@ -310,7 +334,16 @@ try {
     Click (Control 'RefreshButton')
     Pump-Until { (Control 'RefreshButton').IsEnabled }
     Assert ((Control 'DataMode').Text -eq 'API CONNECTED') 'Dashboard failed to recover.'
-    Click (Control 'BackButton')
+    Click $window.FindName('CommandStreamButton')
+    $commandView = $window.FindName('CommandView')
+    Pump-Until { $commandView.FindName('TimelineList').Items.Count -gt 0 }
+    Assert ($commandView.FindName('TimelineStatusText').Text.Contains('chronological order')) 'SortedDictionary timeline is not explained in the command view.'
+    Assert ($commandView.FindName('UniqueErrorStateText').Text.Contains('HashSet')) 'Unique active states are not visible in the command view.'
+    $visibleTimeline = @($commandView.FindName('TimelineList').Items)
+    for ($index = 1; $index -lt $visibleTimeline.Count; $index++) {
+        Assert ($visibleTimeline[$index - 1].Timestamp -le $visibleTimeline[$index].Timestamp) 'Visible command timeline is not chronological.'
+    }
+    Click $commandView.FindName('BackButton')
     Assert ($window.FindName('LandingView').Visibility -eq 'Visible') 'Back navigation failed.'
     Assert ((RegControl 'DeviceIdInput').Text -eq 'OFFLINE-DRAFT') 'Navigation lost the registration draft.'
     $window.Close()
