@@ -88,7 +88,7 @@ namespace SmartX.Contracts
                 foreach (var link in links)
                 {
                     string next = link.From.Equals(current, StringComparison.OrdinalIgnoreCase) ? link.To : link.To.Equals(current, StringComparison.OrdinalIgnoreCase) ? link.From : "";
-                    if (next.Length > 0 && visited.Add(next)) queue.Enqueue(next);
+                    if (next.Length > 0 && known.Contains(next) && visited.Add(next)) queue.Enqueue(next);
                 }
             }
             return result;

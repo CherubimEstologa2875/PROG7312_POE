@@ -115,6 +115,15 @@ public sealed class TelemetryStore
         return ReadDeviceStates().ToDictionary(state => state.DeviceId, StringComparer.OrdinalIgnoreCase);
     }
 
+    // Returns one key per active alert or disconnected device. Rebuilding the
+    // set from current device states clears resolved alerts and stale entries.
+    public string[] ReadActiveErrorStates()
+    {
+        ReadDeviceStates();
+        lock (gate)
+            return activeErrorStates.OrderBy(state => state, StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
     public TimelineSummary ReadTimelineSummary()
     {
         lock (gate)
@@ -142,7 +151,10 @@ public sealed class TelemetryStore
             // endpoint. Querying the sensor's AVL tree avoids scanning every
             // retained reading in the system.
             if (!historyByDevice.TryGetValue(sensorId, out var tree)) return Array.Empty<TelemetryReading>();
-            return tree.Range(from, to).OrderBy(reading => reading.Timestamp, StringComparer.Ordinal).ToArray();
+            // AVL's in-order traversal is already chronological by the
+            // DateTimeOffset key; sorting its k matches again would add
+            // unnecessary O(k log k) work to the O(log n + k) range query.
+            return tree.Range(from, to).ToArray();
         }
     }
 

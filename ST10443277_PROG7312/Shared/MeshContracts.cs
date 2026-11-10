@@ -91,17 +91,24 @@ namespace SmartX.Contracts
             // ring plus short-range skip links avoids O(n^2) edge generation
             // when the gateway manages thousands of sensors.
             var list = nodes.ToList(); var links = new List<MeshLink>();
+            var edgeKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < list.Count; i++)
             {
-                AddLink(links, list[i], list[(i + 1) % list.Count]);
-                if (list.Count > 3) AddLink(links, list[i], list[(i + 2) % list.Count]);
+                AddLink(links, edgeKeys, list[i], list[(i + 1) % list.Count]);
+                if (list.Count > 3) AddLink(links, edgeKeys, list[i], list[(i + 2) % list.Count]);
             }
             return links;
         }
 
-        private static void AddLink(List<MeshLink> links, MeshNode a, MeshNode b)
+        private static void AddLink(List<MeshLink> links, HashSet<string> edgeKeys, MeshNode a, MeshNode b)
         {
-            if (a.Id == b.Id || links.Any(link => (link.From == a.Id && link.To == b.Id) || (link.From == b.Id && link.To == a.Id))) return;
+            if (a.Id.Equals(b.Id, StringComparison.OrdinalIgnoreCase)) return;
+            string first, second;
+            if (StringComparer.OrdinalIgnoreCase.Compare(a.Id, b.Id) <= 0)
+            { first = a.Id; second = b.Id; }
+            else
+            { first = b.Id; second = a.Id; }
+            if (!edgeKeys.Add(first + "\0" + second)) return;
             double dx = a.X - b.X, dy = a.Y - b.Y;
             links.Add(new MeshLink { From = a.Id, To = b.Id, Weight = Math.Round(Math.Sqrt(dx * dx + dy * dy), 2) });
         }

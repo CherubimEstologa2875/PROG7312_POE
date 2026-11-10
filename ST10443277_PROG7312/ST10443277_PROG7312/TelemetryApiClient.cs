@@ -72,6 +72,20 @@ namespace ST10443277_PROG7312
                 return Serializer().Deserialize<TimelineSummary>(await ReadResponseAsync(response).ConfigureAwait(false));
         }
 
+        public async Task<List<TelemetryReading>> GetTimelineAsync(int limit = 12)
+        {
+            using (var response = await Http.GetAsync(new Uri(baseAddress, "api/telemetry/timeline?limit=" + limit)).ConfigureAwait(false))
+                return Serializer().Deserialize<List<TelemetryReading>>(await ReadResponseAsync(response).ConfigureAwait(false))
+                    ?? new List<TelemetryReading>();
+        }
+
+        public async Task<List<string>> GetActiveErrorStatesAsync()
+        {
+            using (var response = await Http.GetAsync(new Uri(baseAddress, "api/device-alerts")).ConfigureAwait(false))
+                return Serializer().Deserialize<List<string>>(await ReadResponseAsync(response).ConfigureAwait(false))
+                    ?? new List<string>();
+        }
+
         public async Task<MeshTopology> GetMeshAsync(string sensorId = null)
         {
             string path = "api/mesh" + (string.IsNullOrWhiteSpace(sensorId) ? "" : "?sensorId=" + Uri.EscapeDataString(sensorId));
