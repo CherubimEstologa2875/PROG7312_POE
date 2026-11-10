@@ -123,7 +123,7 @@ The Smart-X gateway window should appear. To try the implemented workflow:
 4. Select its registry row to open the sensor profile, attach files, or submit a reading for that sensor.
 5. Inspect the telemetry dashboard and filters. Select Refresh, or wait for the automatic 15-second refresh.
 
-A new data directory starts with empty storage; register devices and submit readings to populate it. The gateway now includes the Part 2 command stream; mesh routing remains reserved for the final PoE.
+A new data directory starts with empty storage; register devices and submit readings to populate it. The gateway includes the telemetry, command-stream, and mesh-routing modules. Open Mesh routing to inspect the live graph, trace a registered sensor by MAC address or identifier, and review its last 24 hours of AVL-indexed telemetry history.
 
 To stop the application, close the client window and press Ctrl+C in the backend terminal.
 
@@ -186,6 +186,140 @@ The command screen polls its bounded API queue and indexed device-state feed eve
 
 The real-time API processing path uses a FIFO `Queue<T>` for ordinary telemetry, a priority queue for critical power/moisture alerts, a `Stack<T>` for manual override undo, a device dictionary for O(1) live-state lookup, a `SortedDictionary` for timestamp-indexed timeline logs, and a `HashSet` for unique active alert/disconnect states.
 
+### Historical telemetry tree index
+
+Historical telemetry is indexed per sensor by `TelemetryAvlTree` in `Shared/AdvancedStructures.cs`. It is a binary search tree ordered by `DateTimeOffset`; AVL rotations keep the tree balanced after every insert. `TelemetryStore.ReadRange(sensorId, from, to)` performs a pruned in-order range traversal, returning the matching readings in O(log n + k) time for k results. Both `GET /api/telemetry/range` and sensor-specific requests to `GET /api/telemetry` with `sensorId`, `from`, and `to` use this index. The tree exposes `Count`, `Height`, and `IsBalanced()` for verification.
+
+### Mesh graph and routing algorithms
+
+`MeshRouting.BuildCompleteGraph` models the gateway and ESP32 sensors as vertices with weighted wireless links. The weights are derived from node positions and represent relative hop cost. `MeshGraphTraversal.BreadthFirst` traverses the active online subgraph from the gateway, while `FindRecoveryHops` identifies online neighbours that can be used when a node is down. `MeshRouting.MinimumSpanningTree` applies Kruskal's algorithm with a union-find parent map to build the lowest-cost MST. A min-heap supports shortest-path processing, and selected routes are calculated only over the active online MST so failed nodes are not used as telemetry hops.
+
+## Task 3 implementation reference
+
+### Complete application workflow
+
+The complete suite follows this sequence:
+
+1. The operator starts the ASP.NET Core API and confirms `/health` returns `Healthy`.
+2. The WPF client starts and reads the API URL from `SMARTX_API_URL` or `App.config`.
+3. The operator opens Telemetry and registers sensors with identifiers, locations, and categories.
+4. Telemetry readings are validated, persisted, indexed, and processed into latest-state, timeline, alert, and history views.
+5. The operator uses filters and charts to investigate current readings and alerts.
+6. The operator opens Commands to send, acknowledge, undo, and review device actions.
+7. The operator opens Mesh routing to view the graph, BFS reachability, MST links, active routes, failed nodes, recovery hops, and AVL-indexed telemetry history.
+
+The API is the system boundary. The WPF client does not write JSON files directly. This keeps validation, persistence, algorithms, and error handling in one backend that can later be replaced by a database-backed service without redesigning the UI.
+
+### AVL tree historical index
+
+Each sensor has a `TelemetryAvlTree` keyed by timestamp in `Shared/AdvancedStructures.cs`. An AVL tree is a binary search tree that rotates when its left and right subtree heights differ by more than one. This preserves logarithmic height even when readings arrive in sorted, reverse-sorted, or random timestamp order.
+
+The insertion path is represented by the following implementation pattern:
+
+```csharp
+public void Add(DateTimeOffset key, TelemetryReading value)
+{
+    bool added = false;
+    root = Insert(root, key, value, ref added);
+    if (added) Count++;
+}
+```
+
+The range query prunes branches outside the requested interval:
+
+```csharp
+public List<TelemetryReading> Range(DateTimeOffset from, DateTimeOffset to)
+{
+    var result = new List<TelemetryReading>();
+    if (from > to) return result;
+    VisitRange(root, from, to, result);
+    return result;
+}
+```
+
+`TelemetryStore.ReadRange` looks up the tree for one sensor and returns only matching timestamps. The complexity is O(log n + k), where n is the number of readings in the sensor index and k is the number of results. This is more efficient than filtering the entire retained list for every historical request.
+
+### Graph model
+
+The network graph is represented by `MeshNode` vertices and `MeshLink` edges. A node contains the sensor identifier, position, online state, and location. An edge contains its two endpoint identifiers and a weight. The weight is calculated from the simulated physical positions of the two nodes and acts as a relative wireless hop cost.
+
+The graph construction uses a sparse ring and skip-link topology rather than generating every possible pair. This keeps the demonstration realistic and avoids unnecessary O(n²) edge generation when the gateway manages many sensors.
+
+```csharp
+var physicalGraph = MeshRouting.BuildCompleteGraph(nodes);
+```
+
+The name `BuildCompleteGraph` is retained for compatibility with the existing project, but the implementation deliberately builds a sparse mesh graph.
+
+### BFS connected-device analysis
+
+`MeshGraphTraversal.BreadthFirst` uses a queue. It starts at `gateway`, visits each reachable neighbour once, and records the order in which nodes are discovered. For network health, the API supplies a predicate so offline sensors are not treated as active hops:
+
+```csharp
+var reachable = MeshGraphTraversal.BreadthFirst(
+    nodes,
+    physicalGraph,
+    "gateway",
+    node => node.Gateway || node.Online);
+```
+
+This produces the active connected subgraph. `DownNodes` separately reports registered sensors whose latest state is offline. `FindRecoveryHops` examines the physical neighbours of each down sensor and lists online sensors or the gateway that could be used as recovery candidates.
+
+BFS is appropriate here because the application needs to answer reachability questions rather than calculate a weighted optimum. Its graph traversal cost is O(V + E), where V is the number of vertices and E is the number of edges.
+
+### Kruskal minimum spanning tree
+
+`MeshRouting.MinimumSpanningTree` implements Kruskal's algorithm. It sorts graph edges by weight, then uses a union-find parent map to add the next cheapest edge only when it connects two different components:
+
+```csharp
+foreach (var link in links.OrderBy(l => l.Weight))
+{
+    string a = Root(parent, link.From);
+    string b = Root(parent, link.To);
+    if (a == b) continue;
+    parent[a] = b;
+    link.InSpanningTree = true;
+}
+```
+
+The result connects the network with the lowest total edge cost while avoiding cycles. In Smart-X, this represents the power-efficient telemetry backbone. The API exposes the tree links and total `SpanningTreeCost` so the UI can display the MST overlay.
+
+For a selected online sensor, the API builds an MST from the online subgraph and calculates the route to the gateway on that active tree. This prevents a failed sensor from being selected as a telemetry hop. The MST construction is O(E log E) because the edges are sorted before union-find processing.
+
+### Min-heap route selection
+
+The shared `MinHeap<T>` stores candidate paths ordered by their current cost. The shortest-path algorithm repeatedly removes the lowest-cost candidate and relaxes adjacent edges. This keeps route selection efficient and demonstrates how a heap supports graph algorithms.
+
+### Verification checklist
+
+Use the following checks when demonstrating or marking the implementation:
+
+- Build the API and WPF client from the solution.
+- Start the API and verify `/health`.
+- Register at least two sensors and submit readings for them.
+- Open Mesh routing and confirm the graph, MST count, and BFS count are populated.
+- Select an online sensor and confirm an active gateway route is displayed.
+- Allow a sensor to become stale or use an offline registration and confirm it appears under `DownNodes`.
+- Confirm the route status identifies recovery hops for a down sensor.
+- Select a sensor with history and confirm the mesh history panel reports an AVL tree range query.
+- Run `FeatureIntegration.Tests.ps1` for the end-to-end API and WPF checks.
+
+## Technology recommendations
+
+The current local JSON design is appropriate for a demonstration and assessment environment. For a production Smart-X deployment, the following compatible additions are recommended:
+
+| Recommendation | Benefit | .NET compatibility |
+| --- | --- | --- |
+| PostgreSQL with TimescaleDB | Durable multi-user telemetry storage, time-window compression, and scalable timestamp queries | Supported through Npgsql and Entity Framework Core |
+| Google Cloud IoT-style architecture using Pub/Sub, Cloud Run, and Cloud SQL | Distributed ingestion, independently scalable API workers, and managed database hosting | .NET 9 services can run in containers on Cloud Run and consume Google client libraries or REST APIs |
+| GitHub Actions | Automated build, API tests, WPF build checks, Docker image publishing, and release traceability | Directly runs `dotnet restore`, `dotnet build`, PowerShell tests, and Docker workflows |
+| MQTT broker or Home Assistant integration | Standardised device messaging and interoperability with existing home/industrial automation devices | .NET MQTT client libraries can feed the existing telemetry endpoints |
+| OpenTelemetry with Prometheus and Grafana | Operational metrics for API latency, queue depth, graph calculation time, and failed routes | Works with ASP.NET Core middleware and standard .NET instrumentation |
+| LLM alert-summary service | Daily plain-language summaries of alerts, down nodes, and unusual telemetry patterns | Can be isolated behind a backend service so API keys never reach the WPF client |
+| Redis or a distributed cache | Fast latest-state reads and short-lived route/summary caching across multiple API instances | Available through `Microsoft.Extensions.Caching.StackExchangeRedis` |
+
+The recommended migration order is database persistence first, then CI/CD, then observability and device interoperability. An LLM should be added only after structured alert data and privacy controls are established, because generated summaries must not replace validated telemetry or safety rules.
+
 The command dashboard also posts search/filter activity to the predictive action engine. The engine retains bounded query history, counts transitions between searches, combines those patterns with live threshold alerts, and presents confidence-scored Suggested Actions / Automated Insights. Available endpoints are `POST /api/insights/search` and `GET /api/insights`.
 
 ## Source layout
@@ -195,11 +329,13 @@ The paths below are relative to the outer `ST10443277_PROG7312` directory, excep
 - `SmartX.Api/Program.cs`: minimal API endpoints and HTTP configuration.
 - `SmartX.Api/Validation/TelemetryValidation.cs`: request and timestamp validation.
 - `SmartX.Api/Stores/TelemetryStore.cs`: bounded, file-backed telemetry storage.
+- `Shared/AdvancedStructures.cs`: AVL binary search tree for per-sensor timestamp range queries and mesh graph traversal.
+- `Shared/MeshContracts.cs`: mesh graph, weighted edges, min-heap, MST, route and topology contracts.
 - `SmartX.Api/Stores/SensorRegistrationStore.cs`: persistent sensor registry and duplicate protection.
 - `SmartX.Api/Stores/AttachmentStore.cs` and `SmartX.Api/Endpoints/ProfileEndpoints.cs`: streamed file storage, profile endpoints and typed ingestion.
 - `SmartX.Api/Stores/PacketStore.cs`: generic typed history ingestion and persistence.
 - `SmartX.Api/Stores/CommandStore.cs`: bounded command queue, delivery state and persisted history.
-- `SmartX.Api/Stores/TelemetryStore.cs`: bounded telemetry history plus an indexed latest-state lookup for live device cards.
+- `SmartX.Api/Stores/TelemetryStore.cs`: bounded telemetry history plus AVL range indexes and indexed latest-state lookup for live device cards.
 - `Shared/TelemetryStructures.cs`: generic packets, jagged arrays, typed histories and power operators.
 - `Shared/ProfileContracts.cs`: attachment metadata and recursive deployment validation.
 - `Shared/SensorRegistrationContracts.cs`: shared registration DTOs, validation and MAC normalization.
