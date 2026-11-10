@@ -10,6 +10,8 @@ public sealed class MeshStore
 
     public MeshTopology Read(string? selected = null)
     {
+        // Build the topology from the latest telemetry state and registered
+        // devices so the dashboard reflects the current mesh membership.
         var states = telemetry.ReadDeviceStates();
         var registered = registrations.Read();
         var nodes = new List<MeshNode> { new MeshNode { Id = "gateway", Label = "Central Gateway", Location = "Control room", Gateway = true, Online = true, X = 50, Y = 50 } };
@@ -19,8 +21,13 @@ public sealed class MeshStore
         int index = 0;
         foreach (var item in source.OrderBy(s => s.Id, StringComparer.OrdinalIgnoreCase))
         { double angle = (Math.PI * 2 * index++) / Math.Max(1, source.Count); nodes.Add(new MeshNode { Id = item.Id, Label = item.Id, Location = item.Location, Online = item.Online, X = 50 + 38 * Math.Cos(angle), Y = 50 + 38 * Math.Sin(angle) }); }
+        // Keep the physical graph intact for diagnosis, including offline
+        // sensors. Availability is applied only to traversal and routing.
         var physicalGraph = MeshRouting.BuildCompleteGraph(nodes);
         var tree = MeshRouting.MinimumSpanningTree(nodes);
+
+        // BFS reports the gateway-connected online subgraph. This allows the
+        // UI to distinguish an offline node from an unreachable node.
         var reachable = MeshGraphTraversal.BreadthFirst(nodes, physicalGraph, "gateway", node => node.Gateway || node.Online);
         var recoveryHops = MeshGraphTraversal.FindRecoveryHops(nodes, physicalGraph);
         var topology = new MeshTopology
@@ -38,6 +45,8 @@ public sealed class MeshStore
         else if (!nodes.First(n => n.Id == target).Online) topology.RouteStatus = "Sensor is down. Recovery hops: " + string.Join(", ", recoveryHops.ContainsKey(target) ? recoveryHops[target] : new List<string> { "none available" });
         else
         {
+            // Recalculate the MST using only gateway/online nodes. A failed
+            // sensor can remain visible without becoming a routing hop.
             var activeNodes = nodes.Where(n => n.Gateway || n.Online).ToList();
             var activeTree = MeshRouting.MinimumSpanningTree(activeNodes);
             topology.Route = MeshRouting.ShortestRoute(activeNodes, activeTree, target, "gateway");

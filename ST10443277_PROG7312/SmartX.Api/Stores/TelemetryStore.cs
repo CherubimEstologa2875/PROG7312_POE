@@ -138,6 +138,9 @@ public sealed class TelemetryStore
     {
         lock (gate)
         {
+            // The mesh history screen reaches this method through the range
+            // endpoint. Querying the sensor's AVL tree avoids scanning every
+            // retained reading in the system.
             if (!historyByDevice.TryGetValue(sensorId, out var tree)) return Array.Empty<TelemetryReading>();
             return tree.Range(from, to).OrderBy(reading => reading.Timestamp, StringComparer.Ordinal).ToArray();
         }

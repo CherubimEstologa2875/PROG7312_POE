@@ -109,6 +109,8 @@ namespace SmartX.Contracts
         public static List<MeshLink> MinimumSpanningTree(IEnumerable<MeshNode> nodes)
         {
             var list = nodes.ToList(); var links = BuildCompleteGraph(list);
+            // Kruskal's algorithm considers the cheapest wireless links first.
+            // The parent map is a union-find structure that prevents cycles.
             links = links.OrderBy(l => l.Weight).ToList();
             var parent = list.ToDictionary(n => n.Id, n => n.Id);
             foreach (var link in links)
@@ -126,6 +128,8 @@ namespace SmartX.Contracts
             var edges = tree.ToList();
             var distance = nodeMap.Keys.ToDictionary(id => id, id => double.PositiveInfinity);
             var previous = new Dictionary<string, string>();
+            // Dijkstra's search uses the min-heap to expand the least-cost
+            // candidate first, producing the power-efficient route over MST.
             var heap = new MinHeap<string>(); distance[start] = 0; heap.Enqueue(start, 0);
             while (heap.Count > 0)
             {

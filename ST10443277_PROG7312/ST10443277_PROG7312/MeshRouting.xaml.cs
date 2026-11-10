@@ -27,10 +27,14 @@ namespace ST10443277_PROG7312
             {
                 if (api == null) api = new TelemetryApiClient();
                 string selected = string.IsNullOrWhiteSpace(requestedSensor) ? null : requestedSensor.Trim();
+                // The selected MAC/identifier is sent to the API so route
+                // calculation and historical querying use the same sensor.
                 topology = await api.GetMeshAsync(selected);
                 history.Clear();
                 string resolvedSensor = topology.Route.Count == 0 ? null : topology.Route[0].NodeId;
                 if (!string.IsNullOrWhiteSpace(resolvedSensor))
+                    // This call is served by TelemetryStore.ReadRange, which
+                    // queries the selected sensor's AVL index by time window.
                     history.AddRange(await api.GetTelemetryRangeAsync(resolvedSensor, DateTimeOffset.UtcNow.AddHours(-24), DateTimeOffset.UtcNow));
                 string[] sensorIds = topology.Nodes.Where(n => !n.Gateway).Select(n => n.Id).ToArray();
                 SensorSelector.ItemsSource = sensorIds;
@@ -55,6 +59,8 @@ namespace ST10443277_PROG7312
         private void DrawNetwork()
         {
             if (topology == null) return; NetworkCanvas.Children.Clear(); double w = Math.Max(300, NetworkCanvas.ActualWidth), h = Math.Max(200, NetworkCanvas.ActualHeight); var routeIds = new HashSet<string>(topology.Route.Select(r => r.NodeId));
+            // Render physical links first, then overlay the MST and selected
+            // route colours so users can compare topology and active routing.
             foreach (var link in topology.Links) { var a = topology.Nodes.First(n => n.Id == link.From); var b = topology.Nodes.First(n => n.Id == link.To); bool inTree = topology.SpanningTreeLinks.Any(treeLink => (treeLink.From == link.From && treeLink.To == link.To) || (treeLink.From == link.To && treeLink.To == link.From)); var line = new Line { X1 = a.X / 100 * w, Y1 = a.Y / 100 * h, X2 = b.X / 100 * w, Y2 = b.Y / 100 * h, Stroke = routeIds.Contains(a.Id) && routeIds.Contains(b.Id) ? Brushes.Gold : inTree ? Brushes.MediumSpringGreen : new SolidColorBrush(Color.FromRgb(83, 119, 139)), StrokeThickness = routeIds.Contains(a.Id) && routeIds.Contains(b.Id) ? 4 : inTree ? 2.2 : 0.8 }; NetworkCanvas.Children.Add(line); }
             foreach (var node in topology.Nodes) { double x = node.X / 100 * w, y = node.Y / 100 * h; var dot = new Ellipse { Width = node.Gateway ? 26 : 18, Height = node.Gateway ? 26 : 18, Fill = node.Gateway ? Brushes.Gold : (node.Online ? Brushes.MediumSpringGreen : Brushes.IndianRed), Stroke = Brushes.White, StrokeThickness = 2, ToolTip = node.Label + "\n" + node.Location + "\n" + (node.Online ? "Online" : "Offline") }; Canvas.SetLeft(dot, x - dot.Width / 2); Canvas.SetTop(dot, y - dot.Height / 2); NetworkCanvas.Children.Add(dot); var label = new TextBlock { Text = node.Label, Foreground = Brushes.White, FontSize = 11, FontWeight = routeIds.Contains(node.Id) ? FontWeights.Bold : FontWeights.Normal }; Canvas.SetLeft(label, x + 10); Canvas.SetTop(label, y - 8); NetworkCanvas.Children.Add(label); }
         }
