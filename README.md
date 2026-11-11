@@ -1,7 +1,7 @@
 # Smart-X IoT Gateway
 
 # YOUTUBE DEMO LINK
-https://youtu.be/EZ_6AoL5jGI 
+https://youtu.be/n9imqYUVm4Q 
 
 Final Smart-X IoT mesh application for ST10443277 PROG7312. The solution combines the WPF gateway, ASP.NET Core API, telemetry and command processing, historical range queries, and mesh routing.
 
