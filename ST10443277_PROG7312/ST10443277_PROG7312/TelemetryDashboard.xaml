@@ -297,7 +297,6 @@
                              Padding="8"
                              DisplayMemberPath="DeviceId"
                              SelectedValuePath="DeviceId"
-                             SelectionChanged="InputSensor_SelectionChanged"
                              AutomationProperties.Name="Reading sensor ID"/>
 
                     </StackPanel>
@@ -309,13 +308,10 @@
                         <TextBlock Text="Location"
                                Margin="0,0,0,4"/>
 
-                        <TextBox x:Name="InputLocation"
-                             Text="Zone A"
-                             Width="140"
-                             Padding="8"
-                             MaxLength="80"
-                               IsReadOnly="True"
-                             AutomationProperties.Name="Reading location"/>
+                        <ComboBox x:Name="InputLocation"
+                               Width="140"
+                               Padding="8"
+                               AutomationProperties.Name="Reading location"/>
 
                     </StackPanel>
 

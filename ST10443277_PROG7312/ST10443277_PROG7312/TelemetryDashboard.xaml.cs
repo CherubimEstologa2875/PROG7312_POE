@@ -146,27 +146,20 @@ namespace ST10443277_PROG7312
             {
                 if (api == null) api = new TelemetryApiClient();
                 string selectedId = InputSensor.SelectedValue as string;
+                string selectedLocation = InputLocation.SelectedItem as string;
                 registeredSensors = await api.GetSensorsAsync();
                 InputSensor.ItemsSource = registeredSensors;
                 InputSensor.SelectedValue = registeredSensors.Any(s => s.DeviceId == selectedId)
-                    ? selectedId : registeredSensors.FirstOrDefault()?.DeviceId;
-                UpdateInputLocation();
+                    ? selectedId : null;
+                var locations = registeredSensors.Select(s => s.Location).Distinct()
+                    .OrderBy(location => location, StringComparer.OrdinalIgnoreCase).ToList();
+                InputLocation.ItemsSource = locations;
+                InputLocation.SelectedItem = locations.Contains(selectedLocation) ? selectedLocation : null;
             }
             catch
             {
                 // Keep the last confirmed registry available if a refresh temporarily fails.
             }
-        }
-
-        private void InputSensor_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            UpdateInputLocation();
-        }
-
-        private void UpdateInputLocation()
-        {
-            var selected = InputSensor.SelectedItem as SensorRegistration;
-            if (selected != null) InputLocation.Text = selected.Location;
         }
 
         private static void UpdateFilter(ComboBox filter, string all, IEnumerable<string> values)
@@ -200,7 +193,8 @@ namespace ST10443277_PROG7312
                 return;
             }
             var selectedSensor = InputSensor.SelectedItem as SensorRegistration;
-            if (selectedSensor == null || string.IsNullOrWhiteSpace(InputLocation.Text))
+            var selectedLocation = InputLocation.SelectedItem as string;
+            if (selectedSensor == null || string.IsNullOrWhiteSpace(selectedLocation))
             {
                 SubmitStatus.Text = "Enter a sensor ID and location.";
                 return;
@@ -213,7 +207,7 @@ namespace ST10443277_PROG7312
                 var saved = await api.SubmitAsync(new SubmitTelemetryRequest
                 {
                     SensorId = selectedSensor.DeviceId,
-                    Location = InputLocation.Text.Trim(),
+                    Location = selectedLocation,
                     Category = (string)((ComboBoxItem)InputCategory.SelectedItem).Content,
                     Value = value,
                     Timestamp = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture)
