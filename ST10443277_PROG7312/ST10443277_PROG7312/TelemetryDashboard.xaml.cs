@@ -22,6 +22,7 @@ namespace ST10443277_PROG7312
         private bool refreshPending;
         private DateTime? lastSynced;
         private readonly List<SensorSnapshot> sensors = new List<SensorSnapshot>();
+        private List<SensorRegistration> registeredSensors = new List<SensorRegistration>();
         private bool ready;
         private SensorSnapshot chartSensor;
         private List<Reading> visibleReadings = new List<Reading>();
@@ -40,6 +41,7 @@ namespace ST10443277_PROG7312
             ready = true;
             RefreshDashboard();
             RegistrationPanel.ReadingSaved += async (sender, e) => await ReloadAsync();
+            RegistrationPanel.RegistryChanged += async (sender, e) => await LoadRegisteredSensorsAsync();
             refreshTimer.Tick += async (sender, e) => await ReloadAsync();
             IsVisibleChanged += async (sender, e) =>
             {
@@ -66,6 +68,7 @@ namespace ST10443277_PROG7312
             try
             {
                 if (api == null) api = new TelemetryApiClient();
+                await LoadRegisteredSensorsAsync();
                 var readings = await api.GetReadingsAsync();
                 var packets = await api.GetPacketsAsync();
                 readings.AddRange(packets.ChartReadings());
@@ -137,6 +140,35 @@ namespace ST10443277_PROG7312
             }
         }
 
+        private async Task LoadRegisteredSensorsAsync()
+        {
+            try
+            {
+                if (api == null) api = new TelemetryApiClient();
+                string selectedId = InputSensor.SelectedValue as string;
+                registeredSensors = await api.GetSensorsAsync();
+                InputSensor.ItemsSource = registeredSensors;
+                InputSensor.SelectedValue = registeredSensors.Any(s => s.DeviceId == selectedId)
+                    ? selectedId : registeredSensors.FirstOrDefault()?.DeviceId;
+                UpdateInputLocation();
+            }
+            catch
+            {
+                // Keep the last confirmed registry available if a refresh temporarily fails.
+            }
+        }
+
+        private void InputSensor_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            UpdateInputLocation();
+        }
+
+        private void UpdateInputLocation()
+        {
+            var selected = InputSensor.SelectedItem as SensorRegistration;
+            if (selected != null) InputLocation.Text = selected.Location;
+        }
+
         private static void UpdateFilter(ComboBox filter, string all, IEnumerable<string> values)
         {
             string selected = filter.SelectedItem as string;
@@ -167,7 +199,8 @@ namespace ST10443277_PROG7312
                 SubmitStatus.Text = "Enter a valid numeric reading.";
                 return;
             }
-            if (string.IsNullOrWhiteSpace(InputSensor.Text) || string.IsNullOrWhiteSpace(InputLocation.Text))
+            var selectedSensor = InputSensor.SelectedItem as SensorRegistration;
+            if (selectedSensor == null || string.IsNullOrWhiteSpace(InputLocation.Text))
             {
                 SubmitStatus.Text = "Enter a sensor ID and location.";
                 return;
@@ -179,7 +212,7 @@ namespace ST10443277_PROG7312
                 if (api == null) api = new TelemetryApiClient();
                 var saved = await api.SubmitAsync(new SubmitTelemetryRequest
                 {
-                    SensorId = InputSensor.Text.Trim(),
+                    SensorId = selectedSensor.DeviceId,
                     Location = InputLocation.Text.Trim(),
                     Category = (string)((ComboBoxItem)InputCategory.SelectedItem).Content,
                     Value = value,

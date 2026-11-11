@@ -292,11 +292,12 @@
                         <TextBlock Text="Sensor ID"
                                Margin="0,0,0,4"/>
 
-                        <TextBox x:Name="InputSensor"
-                             Text="S-102"
-                             Width="130"
+                        <ComboBox x:Name="InputSensor"
+                             Width="150"
                              Padding="8"
-                             MaxLength="40"
+                             DisplayMemberPath="DeviceId"
+                             SelectedValuePath="DeviceId"
+                             SelectionChanged="InputSensor_SelectionChanged"
                              AutomationProperties.Name="Reading sensor ID"/>
 
                     </StackPanel>
@@ -313,6 +314,7 @@
                              Width="140"
                              Padding="8"
                              MaxLength="80"
+                               IsReadOnly="True"
                              AutomationProperties.Name="Reading location"/>
 
                     </StackPanel>

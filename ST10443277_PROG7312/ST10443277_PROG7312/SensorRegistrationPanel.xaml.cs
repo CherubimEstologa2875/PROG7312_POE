@@ -20,6 +20,7 @@ namespace ST10443277_PROG7312
         private bool busy;
         private bool hasSnapshot;
         public event EventHandler ReadingSaved;
+        public event EventHandler RegistryChanged;
 
         private async void ProfileSelection_Changed(object sender, SelectionChangedEventArgs e)
         {
@@ -111,6 +112,7 @@ namespace ST10443277_PROG7312
                 RegistryCount.Text = "Registered sensors (" + records.Count + ")";
                 RegistryStatus.Text = records.Count == 0 ? "No sensors registered yet. Add your first device above." :
                     "Registry updated at " + DateTime.Now.ToString("HH:mm:ss") + ". Records are saved by the API.";
+                RegistryChanged?.Invoke(this, EventArgs.Empty);
             }
             catch (Exception error)
             {
