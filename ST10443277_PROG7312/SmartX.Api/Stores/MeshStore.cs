@@ -55,3 +55,7 @@ public sealed class MeshStore
         return topology;
     }
 }
+//REFERENCE LIST
+//Choosing the right mesh networking technology for your application – Digi International Inc..2017. YouTube video, added by Digi International Inc.. [Online]. Available at: https://www.youtube.com/watch?v=cV5ktpaJv5Y&t=15s [Accessed 9 November 2026].
+//How do you calculate a minimum spanning tree? – Spanning Tree.2020. YouTube video, added by Spanning Tree. [Online]. Available at: https://youtu.be/Yldkh0aOEcg?si=8CIHMlKIY4h5Ypba [Accessed 9 November 2026].
+//Union find Krushal's algorithm – WilliamFiset.2017. YouTube video, added by WilliamFiset. [Online]. Available at: https://youtu.be/JZBQLXgSGfs?si=2u6KcV-Fa4a5_ToK [Accessed 9 November 2026].
