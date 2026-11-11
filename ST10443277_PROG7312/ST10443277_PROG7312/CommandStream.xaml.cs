@@ -20,7 +20,8 @@ namespace ST10443277_PROG7312
         private readonly ObservableCollection<InsightRow> insights = new ObservableCollection<InsightRow>();
         private readonly ObservableCollection<TimelineRow> timelineRows = new ObservableCollection<TimelineRow>();
         private Dictionary<string, DeviceState> deviceDictionary = new Dictionary<string, DeviceState>(StringComparer.OrdinalIgnoreCase);
-        private TextBox dictionaryInput;
+        private ComboBox dictionaryInput;
+        private List<SensorRegistration> registeredSensors = new List<SensorRegistration>();
         private TextBlock dictionaryResult;
         // Polling keeps the desktop view current while allowing the API to
         // remain independently deployable. The five-second interval is short
@@ -59,7 +60,8 @@ namespace ST10443277_PROG7312
                 var timelineEntriesTask = api.GetTimelineAsync(12);
                 var activeErrorsTask = api.GetActiveErrorStatesAsync();
                 var insightsTask = api.GetInsightsAsync();
-                await Task.WhenAll(historyTask, statesTask, dictionaryTask, timelineTask, timelineEntriesTask, activeErrorsTask, insightsTask);
+                var sensorsTask = api.GetSensorsAsync();
+                await Task.WhenAll(historyTask, statesTask, dictionaryTask, timelineTask, timelineEntriesTask, activeErrorsTask, insightsTask, sensorsTask);
                 var history = await historyTask;
                 var states = await statesTask;
                 deviceDictionary = await dictionaryTask;
@@ -67,6 +69,13 @@ namespace ST10443277_PROG7312
                 var timelineEntries = await timelineEntriesTask;
                 var activeErrors = await activeErrorsTask;
                 var insightResponse = await insightsTask;
+                string selectedDeviceId = DeviceInput.SelectedValue as string;
+                string selectedLookupId = dictionaryInput.SelectedValue as string;
+                registeredSensors = await sensorsTask;
+                DeviceInput.ItemsSource = registeredSensors;
+                DeviceInput.SelectedValue = registeredSensors.Any(sensor => sensor.DeviceId == selectedDeviceId) ? selectedDeviceId : null;
+                dictionaryInput.ItemsSource = registeredSensors;
+                dictionaryInput.SelectedValue = registeredSensors.Any(sensor => sensor.DeviceId == selectedLookupId) ? selectedLookupId : null;
                 rows.Clear();
                 foreach (var command in history.Items) rows.Add(new CommandRow(command));
                 devices.Clear();
@@ -94,13 +103,14 @@ namespace ST10443277_PROG7312
 
         private async void Send_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(DeviceInput.Text)) { StatusText.Text = "Enter a target device."; return; }
+            var selectedDevice = DeviceInput.SelectedValue as string;
+            if (string.IsNullOrWhiteSpace(selectedDevice)) { StatusText.Text = "Choose a registered target device."; return; }
             SendButton.IsEnabled = false;
             try
             {
                 var selected = (ComboBoxItem)CommandInput.SelectedItem;
-                await api.SubmitCommandAsync(new SubmitCommandRequest { DeviceId = DeviceInput.Text, Command = selected.Tag.ToString(), Parameters = ParametersInput.Text });
-                ParametersInput.Clear(); StatusText.Text = "Command queued for " + DeviceInput.Text.Trim() + "."; await LoadAsync();
+                await api.SubmitCommandAsync(new SubmitCommandRequest { DeviceId = selectedDevice, Command = selected.Tag.ToString(), Parameters = ParametersInput.Text });
+                ParametersInput.Clear(); StatusText.Text = "Command queued for " + selectedDevice + "."; await LoadAsync();
             }
             catch (Exception error) { StatusText.Text = "Command was not queued • " + error.Message; }
             finally { SendButton.IsEnabled = true; }
@@ -115,9 +125,9 @@ namespace ST10443277_PROG7312
 
         private void DictionaryLookup_Click(object sender, RoutedEventArgs e)
         {
-            string key = (dictionaryInput.Text ?? "").Trim();
+            string key = (dictionaryInput.SelectedValue as string ?? "").Trim();
             DeviceState state;
-            if (key.Length == 0) { dictionaryResult.Text = "Enter a device ID or MAC address."; return; }
+            if (key.Length == 0) { dictionaryResult.Text = "Choose a registered device."; return; }
             if (!deviceDictionary.TryGetValue(key, out state))
             {
                 dictionaryResult.Text = "No device found for key: " + key;
@@ -159,7 +169,7 @@ namespace ST10443277_PROG7312
             heading.Children.Add(new TextBlock { Text = "DEVICE DICTIONARY LOOKUP", FontSize = 16, FontWeight = FontWeights.SemiBold });
             heading.Children.Add(new TextBlock { Text = "O(1) lookup by device ID • chronological index summary", Foreground = new SolidColorBrush(Color.FromRgb(87, 101, 121)), Margin = new Thickness(0, 4, 0, 0) });
             layout.Children.Add(heading);
-            dictionaryInput = new TextBox { Width = 190, Padding = new Thickness(8, 6, 8, 6), Margin = new Thickness(12, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center };
+            dictionaryInput = new ComboBox { Width = 190, Padding = new Thickness(8, 6, 8, 6), Margin = new Thickness(12, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, DisplayMemberPath = "DeviceId", SelectedValuePath = "DeviceId", ToolTip = "Choose a registered device" };
             Grid.SetColumn(dictionaryInput, 1); layout.Children.Add(dictionaryInput);
             var actions = new StackPanel();
             var lookup = new Button { Content = "Lookup device", Padding = new Thickness(12, 7, 12, 7), Background = new SolidColorBrush(Color.FromRgb(18, 107, 96)), Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Left };
